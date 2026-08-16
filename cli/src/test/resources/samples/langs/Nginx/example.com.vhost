@@ -8,6 +8,7 @@ server {
 server {
   listen 80;
   listen 443 ssl;
+  http2 on;
   server_name example.com;
 
   # Certs sent to the client in SERVER HELLO are concatenated in ssl_certificate
