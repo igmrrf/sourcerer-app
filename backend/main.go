@@ -25,7 +25,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/go-github/v60/github"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
 )
@@ -84,11 +84,17 @@ var templateFS embed.FS
 //go:embed schema.sql
 var schemaSQL string
 
+//go:embed data/technologies.json
+var technologiesJSON []byte
+
 var (
 	prodTmpl *template.Template
 	db       *sql.DB
 )
 
+var templateFuncs = template.FuncMap{
+	"add": func(a, b int) int { return a + b },
+}
 
 func isDevMode() bool {
 	env := strings.ToLower(os.Getenv("ENV"))
@@ -108,7 +114,7 @@ func renderTemplate(w http.ResponseWriter, name string, data any) {
 	var err error
 
 	if isDevMode() {
-		t, err = template.ParseGlob("templates/*.html")
+		t, err = template.New("").Funcs(templateFuncs).ParseGlob("templates/*.html")
 		if err != nil {
 			slog.Error("Failed to parse templates from disk (hot reload)", "error", err)
 			http.Error(w, "Template parse error", http.StatusInternalServerError)
@@ -148,7 +154,7 @@ func main() {
 
 	// Parse embedded production templates
 	var err error
-	prodTmpl, err = template.ParseFS(templateFS, "templates/*.html")
+	prodTmpl, err = template.New("").Funcs(templateFuncs).ParseFS(templateFS, "templates/*.html")
 	if err != nil {
 		slog.Error("Error parsing embedded templates", "error", err)
 		os.Exit(1)
@@ -190,6 +196,8 @@ func main() {
 				slog.Info("Database schema verified and applied successfully")
 			}
 		}
+		// Automatically seed Awesome Libraries catalog
+		seedTechnologies(db)
 	}
 
 	api := &API{db: db}
@@ -423,6 +431,13 @@ func main() {
 	r.Get("/r/{repo}", handleHallOfFameHTML)
 	r.Get("/r/{repo}.svg", handleHallOfFameSVG)
 	r.Get("/api/hall-of-fame/{repo}", handleHallOfFameAPI)
+
+	// Awesome Libraries Routes (Feature: awesome-libraries)
+	r.Get("/libraries", handleLibrariesCatalogHTML)
+	r.Get("/libraries/{tech}", handleLibraryDetailHTML)
+	r.Get("/api/libraries", handleLibrariesCatalogAPI)
+	r.Get("/api/libraries/{tech}", handleLibraryDetailAPI)
+	r.Get("/dashboard/libraries", handleDashboardLibraries)
 
 
 
@@ -861,6 +876,7 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 		LinesDeleted int
 		Languages    []LangStat
 		Facts        FactsData
+		Libraries    []TechnologyMeta
 		Repos        []RepoInfo
 	}
 
@@ -882,6 +898,9 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 
 	// Facts
 	data.Facts = computeFacts(identifier)
+
+	// Recognized Libraries & Domains
+	data.Libraries = getContributorLibraries(identifier)
 
 	// Repos
 	rows, err := db.Query(`
@@ -1371,6 +1390,266 @@ func handleHallOfFameAPI(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Failed to encode Hall of Fame API response", "error", err)
 	}
 }
+
+// Awesome Libraries Models & Handlers (Feature: awesome-libraries)
+
+type TechnologyMeta struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Lang         string   `json:"lang"`
+	Category     string   `json:"category"`
+	Icon         string   `json:"icon"`
+	Description  string   `json:"description"`
+	ImportTokens []string `json:"import_tokens"`
+	Lines        int      `json:"lines,omitempty"`
+	RepoCount    int      `json:"repo_count,omitempty"`
+}
+
+type LibraryCategoryGroup struct {
+	Category string           `json:"category"`
+	Items    []TechnologyMeta `json:"items"`
+}
+
+func seedTechnologies(db *sql.DB) {
+	if db == nil || len(technologiesJSON) == 0 {
+		return
+	}
+	var techs []TechnologyMeta
+	if err := json.Unmarshal(technologiesJSON, &techs); err != nil {
+		slog.Error("Failed to unmarshal technologies.json", "error", err)
+		return
+	}
+
+	stmt, err := db.Prepare(`
+		INSERT INTO technologies (id, name, lang, category, icon, description, import_tokens)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name,
+			lang = EXCLUDED.lang,
+			category = EXCLUDED.category,
+			icon = EXCLUDED.icon,
+			description = EXCLUDED.description,
+			import_tokens = EXCLUDED.import_tokens`)
+	if err != nil {
+		slog.Error("Failed to prepare technology upsert statement", "error", err)
+		return
+	}
+	defer stmt.Close()
+
+	for _, t := range techs {
+		_, err := stmt.Exec(t.ID, t.Name, t.Lang, t.Category, t.Icon, t.Description, pq.Array(t.ImportTokens))
+		if err != nil {
+			slog.Error("Failed to seed technology", "id", t.ID, "error", err)
+		}
+	}
+	slog.Info("Successfully seeded technologies catalog", "count", len(techs))
+}
+
+func getLibrariesCatalog() []LibraryCategoryGroup {
+	if db == nil {
+		return nil
+	}
+
+	query := `
+		SELECT t.id, t.name, t.lang, t.category, COALESCE(t.icon, ''), COALESCE(t.description, ''),
+		       COALESCE(t.import_tokens, '{}'),
+		       COALESCE(SUM(s.num_lines_added), 0) as total_lines,
+		       COUNT(DISTINCT c.repo_rehash) as repo_count
+		FROM technologies t
+		LEFT JOIN commit_stats s ON (s.tech = t.id OR s.tech = t.name OR s.tech = REPLACE(t.id, t.lang || '.', ''))
+		LEFT JOIN commits c ON c.rehash = s.commit_rehash
+		GROUP BY t.id, t.name, t.lang, t.category, t.icon, t.description, t.import_tokens
+		ORDER BY t.category ASC, total_lines DESC, t.name ASC`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		slog.Error("Failed to query libraries catalog", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	groupMap := make(map[string][]TechnologyMeta)
+	var categoryOrder []string
+
+	for rows.Next() {
+		var tm TechnologyMeta
+		if err := rows.Scan(&tm.ID, &tm.Name, &tm.Lang, &tm.Category, &tm.Icon, &tm.Description, pq.Array(&tm.ImportTokens), &tm.Lines, &tm.RepoCount); err == nil {
+			if _, exists := groupMap[tm.Category]; !exists {
+				categoryOrder = append(categoryOrder, tm.Category)
+			}
+			groupMap[tm.Category] = append(groupMap[tm.Category], tm)
+		}
+	}
+
+	var result []LibraryCategoryGroup
+	for _, cat := range categoryOrder {
+		result = append(result, LibraryCategoryGroup{
+			Category: cat,
+			Items:    groupMap[cat],
+		})
+	}
+	return result
+}
+
+func getLibraryDetail(techID string) (*TechnologyMeta, []ContributorStat) {
+	var tm TechnologyMeta
+	if db == nil {
+		return &tm, nil
+	}
+
+	err := db.QueryRow(`
+		SELECT id, name, lang, category, COALESCE(icon, ''), COALESCE(description, ''), COALESCE(import_tokens, '{}')
+		FROM technologies
+		WHERE id = $1 OR name ILIKE $1 LIMIT 1`, techID).Scan(&tm.ID, &tm.Name, &tm.Lang, &tm.Category, &tm.Icon, &tm.Description, pq.Array(&tm.ImportTokens))
+	if err != nil {
+		tm = TechnologyMeta{
+			ID:       techID,
+			Name:     techID,
+			Lang:     "framework",
+			Category: "General Library",
+		}
+	}
+
+	// Leaderboard for this library
+	var contributors []ContributorStat
+	strippedID := strings.TrimPrefix(tm.ID, tm.Lang+".")
+	cRows, err := db.Query(`
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
+		       COUNT(DISTINCT c.rehash) as commit_count, 
+		       COALESCE(SUM(s.num_lines_added), 0) as added, 
+		       COALESCE(SUM(s.num_lines_deleted), 0) as deleted,
+		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		FROM commit_stats s
+		JOIN commits c ON c.rehash = s.commit_rehash
+		LEFT JOIN authors a ON a.email = c.author_email
+		LEFT JOIN users u ON u.email = c.author_email
+		WHERE s.tech = $1 OR s.tech = $2 OR s.tech = $3
+		GROUP BY c.author_email
+		ORDER BY added DESC
+		LIMIT 10`, tm.ID, tm.Name, strippedID)
+	if err == nil {
+		defer cRows.Close()
+		for cRows.Next() {
+			var cs ContributorStat
+			if err := cRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer); err == nil {
+				contributors = append(contributors, cs)
+			}
+		}
+	}
+
+	return &tm, contributors
+}
+
+func getContributorLibraries(email string) []TechnologyMeta {
+	if db == nil {
+		return nil
+	}
+
+	var rows *sql.Rows
+	var err error
+
+	if email != "" {
+		rows, err = db.Query(`
+			SELECT COALESCE(t.id, s.tech) as tech_id, 
+			       COALESCE(t.name, s.tech) as tech_name, 
+			       COALESCE(t.lang, 'framework') as tech_lang, 
+			       COALESCE(t.category, 'Recognized Library') as tech_cat, 
+			       COALESCE(SUM(s.num_lines_added), 0) as lines
+			FROM commit_stats s
+			JOIN commits c ON c.rehash = s.commit_rehash
+			LEFT JOIN technologies t ON (t.id = s.tech OR t.name ILIKE s.tech OR t.id = 'js.' || s.tech OR t.id = 'py.' || s.tech OR t.id = 'go.' || s.tech)
+			WHERE c.author_email = $1 AND (s.type = 2 OR t.id IS NOT NULL)
+			GROUP BY tech_id, tech_name, tech_lang, tech_cat
+			ORDER BY lines DESC
+			LIMIT 12`, email)
+	} else {
+		rows, err = db.Query(`
+			SELECT COALESCE(t.id, s.tech) as tech_id, 
+			       COALESCE(t.name, s.tech) as tech_name, 
+			       COALESCE(t.lang, 'framework') as tech_lang, 
+			       COALESCE(t.category, 'Recognized Library') as tech_cat, 
+			       COALESCE(SUM(s.num_lines_added), 0) as lines
+			FROM commit_stats s
+			JOIN commits c ON c.rehash = s.commit_rehash
+			LEFT JOIN technologies t ON (t.id = s.tech OR t.name ILIKE s.tech OR t.id = 'js.' || s.tech OR t.id = 'py.' || s.tech OR t.id = 'go.' || s.tech)
+			WHERE s.type = 2 OR t.id IS NOT NULL
+			GROUP BY tech_id, tech_name, tech_lang, tech_cat
+			ORDER BY lines DESC
+			LIMIT 12`)
+	}
+
+	if err != nil {
+		slog.Error("Error querying contributor libraries", "email", email, "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var result []TechnologyMeta
+	for rows.Next() {
+		var tm TechnologyMeta
+		if err := rows.Scan(&tm.ID, &tm.Name, &tm.Lang, &tm.Category, &tm.Lines); err == nil {
+			if tm.Lines > 0 {
+				result = append(result, tm)
+			}
+		}
+	}
+	return result
+}
+
+func handleLibrariesCatalogHTML(w http.ResponseWriter, r *http.Request) {
+	groups := getLibrariesCatalog()
+	renderTemplate(w, "libraries.html", groups)
+}
+
+func handleLibraryDetailHTML(w http.ResponseWriter, r *http.Request) {
+	techID := chi.URLParam(r, "tech")
+	tech, contributors := getLibraryDetail(techID)
+
+	data := struct {
+		Library      *TechnologyMeta
+		Contributors []ContributorStat
+	}{
+		Library:      tech,
+		Contributors: contributors,
+	}
+
+	renderTemplate(w, "library_detail.html", data)
+}
+
+func handleLibrariesCatalogAPI(w http.ResponseWriter, r *http.Request) {
+	groups := getLibrariesCatalog()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(groups); err != nil {
+		slog.Error("Failed to encode libraries API response", "error", err)
+	}
+}
+
+func handleLibraryDetailAPI(w http.ResponseWriter, r *http.Request) {
+	techID := chi.URLParam(r, "tech")
+	tech, contributors := getLibraryDetail(techID)
+
+	data := struct {
+		Library      *TechnologyMeta   `json:"library"`
+		Contributors []ContributorStat `json:"contributors"`
+	}{
+		Library:      tech,
+		Contributors: contributors,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("Failed to encode library detail API response", "error", err)
+	}
+}
+
+func handleDashboardLibraries(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	libs := getContributorLibraries(email)
+	renderTemplate(w, "libraries_partial.html", libs)
+}
+
 
 
 

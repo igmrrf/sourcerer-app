@@ -61,3 +61,16 @@ CREATE TABLE IF NOT EXISTS authors (
     name TEXT,
     repo_rehash TEXT REFERENCES repos(rehash)
 );
+
+CREATE TABLE IF NOT EXISTS technologies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    category TEXT NOT NULL,
+    icon TEXT,
+    description TEXT,
+    import_tokens TEXT[]
+);
+
+CREATE INDEX IF NOT EXISTS idx_technologies_lang ON technologies(lang);
+CREATE INDEX IF NOT EXISTS idx_technologies_category ON technologies(category);

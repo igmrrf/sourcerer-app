@@ -20,16 +20,25 @@
 | `backend/templates/facts.html` | Redesigned | Glassmorphic habit cards with themed icons, glowing purple badges, and behavior descriptions |
 | `backend/templates/repo.html` | Created | Public repository showcase with 3-tier contributor grid, language breakdown, and README Embed Hub |
 | `backend/templates/repos.html` | Updated | Added direct Hall of Fame navigation buttons to repository cards |
-| `backend/main.go` | Updated | Added `getHallOfFameData`, `generateHallOfFameSVG`, and Hall of Fame HTML/SVG/JSON API routes |
-| `backend/main_test.go` | Updated | Added automated tests for Hall of Fame SVG generation and data models |
-| `backend/schema.sql` | Updated | Added composite indexes `idx_commits_repo_date` and `idx_commits_repo_author` |
-| `CHANGELOG.md` | Updated | Documented Hall of Fame release |
+| `backend/templates/libraries.html` | Created | Curated Awesome Libraries database catalog with search, filter, and domain categories |
+| `backend/templates/library_detail.html` | Created | Individual library intelligence, import tokens, and contributor leaderboard |
+| `backend/templates/libraries_partial.html` | Created | HTMX dashboard card partial for recognized libraries and frameworks |
+| `backend/data/technologies.json` | Created | 38 curated technology definitions across 19 technical domains |
+| `backend/main.go` | Updated | Embedded `technologies.json`, startup catalog seeding, `getLibrariesCatalog`, `getLibraryDetail`, `getContributorLibraries`, and Chi routes |
+| `backend/main_test.go` | Updated | Added tests for Hall of Fame SVG generation, data models, and Awesome Libraries catalog |
+| `backend/schema.sql` | Updated | Added `technologies` table with category & language indexing |
+| `CHANGELOG.md` | Updated | Documented Hall of Fame and Awesome Libraries release |
 
 ---
 
 ## Automated Verification
-- `go test -v ./...` in `backend/` executed with 100% test pass rate across all unit tests including cookie signing, session handling, API authorization, SVG profile badge, and Hall of Fame SVG generator.
+- `go test -v ./...` in `backend/` executed with 100% test pass rate across all unit tests including cookie signing, session handling, API authorization, SVG profile badge, Hall of Fame SVG generator, and Awesome Libraries taxonomy validation.
 - Live HTTP endpoints verified:
   - `GET /api/hall-of-fame/{repo}` -> HTTP 200 JSON with contributor tiers and AST languages.
   - `GET /hall-of-fame/{repo}.svg` -> HTTP 200 valid XML/SVG with dark purple theme and avatars.
   - `GET /r/{repo}` -> HTTP 200 HTML showcase with interactive README embed hub.
+  - `GET /libraries` -> HTTP 200 HTML Awesome Libraries database with search & categories.
+  - `GET /libraries/{tech}` -> HTTP 200 HTML library intelligence and leaderboard.
+  - `GET /api/libraries` -> HTTP 200 JSON categorized library catalog.
+  - `GET /api/libraries/{tech}` -> HTTP 200 JSON library metadata and contributor stats.
+  - `GET /dashboard/libraries` -> HTTP 200 HTMX partial with detected libraries and line diffs.

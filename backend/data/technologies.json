@@ -1,0 +1,353 @@
+[
+  {
+    "id": "py.pytorch",
+    "name": "PyTorch",
+    "lang": "python",
+    "category": "Machine Learning & AI",
+    "icon": "pytorch",
+    "import_tokens": ["torch", "torchvision", "torch.nn", "torch.optim", "torchaudio"],
+    "description": "Optimized tensor library for deep learning using GPUs and CPUs."
+  },
+  {
+    "id": "py.tensorflow",
+    "name": "TensorFlow",
+    "lang": "python",
+    "category": "Machine Learning & AI",
+    "icon": "tensorflow",
+    "import_tokens": ["tensorflow", "tf.keras", "tensorboard"],
+    "description": "End-to-end open source platform for machine learning and neural networks."
+  },
+  {
+    "id": "py.scikit-learn",
+    "name": "scikit-learn",
+    "lang": "python",
+    "category": "Machine Learning & AI",
+    "icon": "scikitlearn",
+    "import_tokens": ["sklearn", "sklearn.linear_model", "sklearn.ensemble", "sklearn.metrics"],
+    "description": "Simple and efficient tools for predictive data analysis and machine learning."
+  },
+  {
+    "id": "py.pandas",
+    "name": "Pandas",
+    "lang": "python",
+    "category": "Data Engineering",
+    "icon": "pandas",
+    "import_tokens": ["pandas", "pd.DataFrame", "pd.Series", "pd.read_csv"],
+    "description": "Fast, powerful, flexible and easy to use open source data analysis and manipulation tool."
+  },
+  {
+    "id": "py.numpy",
+    "name": "NumPy",
+    "lang": "python",
+    "category": "Scientific Computing",
+    "icon": "numpy",
+    "import_tokens": ["numpy", "np.array", "np.zeros", "np.linalg"],
+    "description": "Fundamental package for scientific computing with array calculation in Python."
+  },
+  {
+    "id": "py.fastapi",
+    "name": "FastAPI",
+    "lang": "python",
+    "category": "Web & APIs",
+    "icon": "fastapi",
+    "import_tokens": ["fastapi", "FastAPI", "APIRouter", "Depends", "HTTPException"],
+    "description": "Modern, fast (high-performance), web framework for building APIs with Python 3.8+."
+  },
+  {
+    "id": "py.django",
+    "name": "Django",
+    "lang": "python",
+    "category": "Web & APIs",
+    "icon": "django",
+    "import_tokens": ["django", "django.db", "django.urls", "django.views"],
+    "description": "High-level Python web framework that encourages rapid development and clean design."
+  },
+  {
+    "id": "py.flask",
+    "name": "Flask",
+    "lang": "python",
+    "category": "Web & APIs",
+    "icon": "flask",
+    "import_tokens": ["flask", "Flask", "render_template", "request", "Blueprint"],
+    "description": "Lightweight WSGI web application framework designed to make getting started quick and easy."
+  },
+  {
+    "id": "py.sqlalchemy",
+    "name": "SQLAlchemy",
+    "lang": "python",
+    "category": "Databases & ORM",
+    "icon": "sqlalchemy",
+    "import_tokens": ["sqlalchemy", "sqlalchemy.orm", "Session", "create_engine"],
+    "description": "The Python SQL Toolkit and Object Relational Mapper for database interaction."
+  },
+  {
+    "id": "py.celery",
+    "name": "Celery",
+    "lang": "python",
+    "category": "Distributed Systems",
+    "icon": "celery",
+    "import_tokens": ["celery", "Celery", "shared_task", "celery.schedules"],
+    "description": "Distributed task queue with real-time processing and asynchronous task scheduling."
+  },
+  {
+    "id": "js.react",
+    "name": "React",
+    "lang": "javascript",
+    "category": "Frontend Frameworks",
+    "icon": "react",
+    "import_tokens": ["react", "useState", "useEffect", "useCallback", "useMemo", "createContext"],
+    "description": "A JavaScript library for building component-driven user interfaces."
+  },
+  {
+    "id": "js.next",
+    "name": "Next.js",
+    "lang": "javascript",
+    "category": "Full-Stack Web",
+    "icon": "nextjs",
+    "import_tokens": ["next", "next/router", "next/link", "next/image", "next/navigation"],
+    "description": "The React framework for the Web enabling server-side rendering and static web apps."
+  },
+  {
+    "id": "js.vue",
+    "name": "Vue.js",
+    "lang": "javascript",
+    "category": "Frontend Frameworks",
+    "icon": "vuejs",
+    "import_tokens": ["vue", "createApp", "ref", "reactive", "computed", "onMounted"],
+    "description": "Progressive JavaScript Framework for building modern web user interfaces."
+  },
+  {
+    "id": "js.svelte",
+    "name": "Svelte",
+    "lang": "javascript",
+    "category": "Frontend Frameworks",
+    "icon": "svelte",
+    "import_tokens": ["svelte", "svelte/store", "onMount", "writable"],
+    "description": "Cybernetically enhanced web apps with compile-step reactive DOM manipulation."
+  },
+  {
+    "id": "js.express",
+    "name": "Express.js",
+    "lang": "javascript",
+    "category": "Web & APIs",
+    "icon": "express",
+    "import_tokens": ["express", "express.Router", "app.use", "app.get", "app.post"],
+    "description": "Fast, unopinionated, minimalist web framework for Node.js."
+  },
+  {
+    "id": "js.nestjs",
+    "name": "NestJS",
+    "lang": "typescript",
+    "category": "Backend Architecture",
+    "icon": "nestjs",
+    "import_tokens": ["@nestjs/core", "@nestjs/common", "Injectable", "Controller", "Module"],
+    "description": "Progressive Node.js framework for building efficient, reliable and scalable server-side apps."
+  },
+  {
+    "id": "js.tailwind",
+    "name": "Tailwind CSS",
+    "lang": "css",
+    "category": "UI & Styling",
+    "icon": "tailwindcss",
+    "import_tokens": ["tailwindcss", "@tailwind", "tailwind.config.js"],
+    "description": "Utility-first CSS framework packed with classes for rapid UI construction."
+  },
+  {
+    "id": "js.redux",
+    "name": "Redux",
+    "lang": "javascript",
+    "category": "State Management",
+    "icon": "redux",
+    "import_tokens": ["redux", "@reduxjs/toolkit", "createSlice", "configureStore", "useSelector"],
+    "description": "Predictable state container for JavaScript apps."
+  },
+  {
+    "id": "js.prisma",
+    "name": "Prisma",
+    "lang": "typescript",
+    "category": "Databases & ORM",
+    "icon": "prisma",
+    "import_tokens": ["@prisma/client", "PrismaClient", "prisma.schema"],
+    "description": "Next-generation Node.js and TypeScript ORM."
+  },
+  {
+    "id": "go.chi",
+    "name": "Chi",
+    "lang": "go",
+    "category": "Web & APIs",
+    "icon": "go",
+    "import_tokens": ["github.com/go-chi/chi", "chi.NewRouter", "chi.URLParam"],
+    "description": "Lightweight, idiomatic and composable router for building Go HTTP services."
+  },
+  {
+    "id": "go.gin",
+    "name": "Gin",
+    "lang": "go",
+    "category": "Web & APIs",
+    "icon": "gin",
+    "import_tokens": ["github.com/gin-gonic/gin", "gin.Default", "gin.Context"],
+    "description": "HTTP web framework written in Go featuring a Martini-like API with top performance."
+  },
+  {
+    "id": "go.fiber",
+    "name": "Fiber",
+    "lang": "go",
+    "category": "Web & APIs",
+    "icon": "gofiber",
+    "import_tokens": ["github.com/gofiber/fiber", "fiber.New", "fiber.Ctx"],
+    "description": "Express-inspired web framework built on top of Fasthttp for Go."
+  },
+  {
+    "id": "go.gorm",
+    "name": "GORM",
+    "lang": "go",
+    "category": "Databases & ORM",
+    "icon": "gorm",
+    "import_tokens": ["gorm.io/gorm", "gorm.Open", "gorm.Model"],
+    "description": "The fantastic ORM library for Golang, developer friendly and feature rich."
+  },
+  {
+    "id": "go.grpc",
+    "name": "gRPC Go",
+    "lang": "go",
+    "category": "Distributed Systems",
+    "icon": "grpc",
+    "import_tokens": ["google.golang.org/grpc", "grpc.NewServer", "grpc.Dial"],
+    "description": "High performance, open source universal RPC framework."
+  },
+  {
+    "id": "go.cobra",
+    "name": "Cobra",
+    "lang": "go",
+    "category": "CLI & Tooling",
+    "icon": "cobra",
+    "import_tokens": ["github.com/spf13/cobra", "cobra.Command", "cobra.Execute"],
+    "description": "A Commander for modern Go CLI interactions, powering Kubernetes and Hugo."
+  },
+  {
+    "id": "go.zap",
+    "name": "Zap",
+    "lang": "go",
+    "category": "Observability",
+    "icon": "zap",
+    "import_tokens": ["go.uber.org/zap", "zap.NewProduction", "zap.Logger"],
+    "description": "Blazing fast, structured, leveled logging in Go."
+  },
+  {
+    "id": "go.prometheus",
+    "name": "Prometheus Client",
+    "lang": "go",
+    "category": "Observability",
+    "icon": "prometheus",
+    "import_tokens": ["github.com/prometheus/client_golang/prometheus", "prometheus.NewCounter", "prometheus.NewHistogram"],
+    "description": "Prometheus instrumentation library for Go applications."
+  },
+  {
+    "id": "rs.tokio",
+    "name": "Tokio",
+    "lang": "rust",
+    "category": "Async & Concurrency",
+    "icon": "rust",
+    "import_tokens": ["tokio", "tokio::main", "tokio::spawn", "tokio::sync"],
+    "description": "An asynchronous runtime for the Rust programming language."
+  },
+  {
+    "id": "rs.actix",
+    "name": "Actix Web",
+    "lang": "rust",
+    "category": "Web & APIs",
+    "icon": "actix",
+    "import_tokens": ["actix_web", "HttpServer", "App", "web::get", "HttpResponse"],
+    "description": "Powerful, pragmatic, and extremely fast web framework for Rust."
+  },
+  {
+    "id": "rs.axum",
+    "name": "Axum",
+    "lang": "rust",
+    "category": "Web & APIs",
+    "icon": "axum",
+    "import_tokens": ["axum", "axum::Router", "axum::routing::get", "axum::extract::Path"],
+    "description": "Ergonomic and modular web framework built with Tokio, Tower, and Hyper."
+  },
+  {
+    "id": "rs.serde",
+    "name": "Serde",
+    "lang": "rust",
+    "category": "Serialization",
+    "icon": "serde",
+    "import_tokens": ["serde", "serde::Serialize", "serde::Deserialize", "serde_json"],
+    "description": "Framework for serializing and deserializing Rust data structures efficiently and generically."
+  },
+  {
+    "id": "rs.sqlx",
+    "name": "SQLx",
+    "lang": "rust",
+    "category": "Databases & ORM",
+    "icon": "sqlx",
+    "import_tokens": ["sqlx", "sqlx::query", "sqlx::PgPool", "sqlx::FromRow"],
+    "description": "The Rust SQL Toolkit: async, pure Rust SQL crate featuring compile-time checked queries."
+  },
+  {
+    "id": "java.spring",
+    "name": "Spring Boot",
+    "lang": "java",
+    "category": "Enterprise Backend",
+    "icon": "springboot",
+    "import_tokens": ["org.springframework.boot", "SpringBootApplication", "RestController", "Autowired"],
+    "description": "Framework to create stand-alone, production-grade Spring based Applications."
+  },
+  {
+    "id": "kotlin.ktor",
+    "name": "Ktor",
+    "lang": "kotlin",
+    "category": "Web & APIs",
+    "icon": "ktor",
+    "import_tokens": ["io.ktor.server", "embeddedServer", "routing", "io.ktor.client"],
+    "description": "Framework for building asynchronous servers and clients in connected systems."
+  },
+  {
+    "id": "kotlin.coroutines",
+    "name": "Kotlin Coroutines",
+    "lang": "kotlin",
+    "category": "Async & Concurrency",
+    "icon": "kotlin",
+    "import_tokens": ["kotlinx.coroutines", "CoroutineScope", "launch", "async", "Flow"],
+    "description": "Library support for Kotlin coroutines with multiplatform support."
+  },
+  {
+    "id": "devops.docker",
+    "name": "Docker",
+    "lang": "devops",
+    "category": "Cloud & DevOps",
+    "icon": "docker",
+    "import_tokens": ["Dockerfile", "docker-compose.yml", "FROM", "ENTRYPOINT"],
+    "description": "Containerization platform for packaging and running applications across isolated environments."
+  },
+  {
+    "id": "devops.kubernetes",
+    "name": "Kubernetes",
+    "lang": "devops",
+    "category": "Cloud & DevOps",
+    "icon": "kubernetes",
+    "import_tokens": ["k8s", "apiVersion", "kind: Deployment", "kind: Service"],
+    "description": "Automated container orchestration, scaling, and management platform."
+  },
+  {
+    "id": "devops.terraform",
+    "name": "Terraform",
+    "lang": "devops",
+    "category": "Infrastructure as Code",
+    "icon": "terraform",
+    "import_tokens": ["terraform", "resource", "provider", "variable", ".tf"],
+    "description": "Infrastructure as Code tool for automating cloud resource provisioning across providers."
+  },
+  {
+    "id": "devops.github-actions",
+    "name": "GitHub Actions",
+    "lang": "devops",
+    "category": "CI/CD & Automation",
+    "icon": "githubactions",
+    "import_tokens": [".github/workflows", "on: [push]", "runs-on: ubuntu-latest", "steps:"],
+    "description": "CI/CD platform for automating build, test, and deployment workflows directly from GitHub."
+  }
+]

@@ -1,12 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
-
 )
 
 func TestCookieSigningAndVerification(t *testing.T) {
@@ -222,5 +222,50 @@ func TestGenerateHallOfFameSVG(t *testing.T) {
 		t.Fatal("generateHallOfFameSVG output missing language stats")
 	}
 }
+
+func TestAwesomeLibrariesCatalog(t *testing.T) {
+	if len(technologiesJSON) == 0 {
+		t.Fatal("technologiesJSON embedded data is empty")
+	}
+
+	var techs []TechnologyMeta
+	if err := json.Unmarshal(technologiesJSON, &techs); err != nil {
+		t.Fatalf("Failed to parse embedded technologies.json: %v", err)
+	}
+
+	if len(techs) < 10 {
+		t.Fatalf("Expected at least 10 recognized libraries, got %d", len(techs))
+	}
+
+	// Verify key ecosystems exist
+	foundReact := false
+	foundPyTorch := false
+	foundChi := false
+	foundTokio := false
+
+	for _, tech := range techs {
+		if tech.ID == "" || tech.Name == "" || tech.Category == "" {
+			t.Fatalf("Invalid library entry missing essential fields: %+v", tech)
+		}
+		if tech.ID == "js.react" {
+			foundReact = true
+		}
+		if tech.ID == "py.pytorch" {
+			foundPyTorch = true
+		}
+		if tech.ID == "go.chi" {
+			foundChi = true
+		}
+		if tech.ID == "rs.tokio" {
+			foundTokio = true
+		}
+	}
+
+	if !foundReact || !foundPyTorch || !foundChi || !foundTokio {
+		t.Fatalf("Missing essential ecosystem libraries (React: %v, PyTorch: %v, Chi: %v, Tokio: %v)",
+			foundReact, foundPyTorch, foundChi, foundTokio)
+	}
+}
+
 
 
