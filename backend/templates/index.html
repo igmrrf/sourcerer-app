@@ -498,6 +498,7 @@
                     <span class="user-avatar-badge">{{slice .User.Name 0 1}}</span>
                     <span>{{.User.Name}}</span>
                 </div>
+                <a href="/auth/github/login" class="btn btn-outline" title="Re-sync repositories">&#8635; Sync Repos</a>
                 <a href="/p/{{.User.Email}}" class="btn btn-outline" target="_blank">&#128100; Public Profile</a>
                 <a href="/auth/logout" class="btn btn-outline">Logout</a>
                 {{else}}
@@ -506,8 +507,15 @@
                 <div class="select-wrapper">
                     <select name="email" id="email-select">
                         <option value="">All Contributors</option>
+                        {{if .User}}
+                        <option value="{{.User.Email}}" selected>{{.User.Name}} (You)</option>
+                        {{end}}
                         {{range .Authors}}
+                        {{if and $.User (eq $.User.Email .Email)}}
+                        <!-- already added as primary -->
+                        {{else}}
                         <option value="{{.Email}}">{{if .Name}}{{.Name}} ({{.Email}}){{else}}{{.Email}}{{end}}</option>
+                        {{end}}
                         {{end}}
                     </select>
                 </div>

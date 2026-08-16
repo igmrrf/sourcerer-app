@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"backend/app"
 
@@ -25,34 +26,52 @@ func apiAuthMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		authHeader := r.Header.Get("Authorization")
-		if authHeader != "Bearer "+token {
-			cookie, err := r.Cookie("Token")
-			if err != nil || cookie.Value != token {
-				slog.Warn("Unauthorized API request rejected", "remote_addr", r.RemoteAddr, "path", r.URL.Path)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
+
+		// Allow internal loopback requests from worker inside container
+		host := r.RemoteAddr
+		if strings.HasPrefix(host, "127.0.0.1:") || strings.HasPrefix(host, "[::1]:") || strings.HasPrefix(host, "localhost:") || host == "@" {
+			next.ServeHTTP(w, r)
+			return
 		}
-		next.ServeHTTP(w, r)
+
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "Bearer "+token {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		cookie, err := r.Cookie("Token")
+		if err == nil && cookie.Value == token {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		slog.Warn("Unauthorized API request rejected", "remote_addr", r.RemoteAddr, "path", r.URL.Path)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
 }
 
 func (a *API) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Use(apiAuthMiddleware)
 
+	// Public CLI Auth endpoint: issues the Token cookie
 	r.Post("/auth", a.HandleAuth)
-	r.Get("/user", a.HandleGetUser)
-	r.Post("/user", a.HandlePostUser)
-	r.Post("/repo", a.HandlePostRepo)
-	r.Post("/commits", a.HandlePostCommits)
-	r.Delete("/commits", a.HandleDeleteCommits)
-	r.Post("/facts", a.HandlePostFacts)
-	r.Post("/authors", a.HandlePostAuthors)
-	r.Post("/distances", a.HandlePostDistances)
-	r.Post("/process/create", a.HandleProcessCreate)
-	r.Post("/process", a.HandleProcess)
+
+	// Protected ingestion routes
+	r.Group(func(r chi.Router) {
+		r.Use(apiAuthMiddleware)
+
+		r.Get("/user", a.HandleGetUser)
+		r.Post("/user", a.HandlePostUser)
+		r.Post("/repo", a.HandlePostRepo)
+		r.Post("/commits", a.HandlePostCommits)
+		r.Delete("/commits", a.HandleDeleteCommits)
+		r.Post("/facts", a.HandlePostFacts)
+		r.Post("/authors", a.HandlePostAuthors)
+		r.Post("/distances", a.HandlePostDistances)
+		r.Post("/process/create", a.HandleProcessCreate)
+		r.Post("/process", a.HandleProcess)
+	})
 
 	return r
 }
