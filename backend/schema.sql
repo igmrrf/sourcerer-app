@@ -6,8 +6,17 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS repos (
     rehash TEXT PRIMARY KEY,
-    initial_commit_rehash TEXT
+    initial_commit_rehash TEXT,
+    repo_url TEXT,
+    repo_name TEXT,
+    last_commit_rehash TEXT,
+    last_synced_at BIGINT,
+    github_pushed_at TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_repos_repo_url ON repos(repo_url);
+CREATE INDEX IF NOT EXISTS idx_repos_repo_name ON repos(repo_name);
+CREATE INDEX IF NOT EXISTS idx_repos_last_commit ON repos(last_commit_rehash);
 
 CREATE TABLE IF NOT EXISTS commits (
     rehash TEXT PRIMARY KEY,

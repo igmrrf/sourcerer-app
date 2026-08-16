@@ -2,26 +2,32 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 type IngestionJob struct {
-	RepoURL   string
-	UserEmail string
+	RepoURL        string
+	RepoName       string
+	UserEmail      string
+	GitHubPushedAt string
 }
 
-var JobQueue = make(chan IngestionJob, 100)
+var JobQueue = make(chan IngestionJob, 200)
 
 func EnqueueJob(job IngestionJob) bool {
 	select {
 	case JobQueue <- job:
-		slog.Info("Enqueued repository ingestion job", "repo_url", job.RepoURL, "user_email", job.UserEmail)
+		slog.Info("Enqueued repository ingestion job", "repo_url", job.RepoURL, "repo_name", job.RepoName, "user_email", job.UserEmail)
 		return true
 	default:
-		slog.Warn("Job queue full, dropping repository ingestion job", "repo_url", job.RepoURL, "user_email", job.UserEmail)
+		slog.Warn("Job queue full, dropping repository ingestion job", "repo_url", job.RepoURL, "repo_name", job.RepoName, "user_email", job.UserEmail)
 		return false
 	}
 }
@@ -39,10 +45,69 @@ func StartWorker(ctx context.Context) {
 	}
 }
 
-func processJob(job IngestionJob) {
-	slog.Info("Processing repository ingestion job", "repo_url", job.RepoURL, "user_email", job.UserEmail)
+func computeCommitRehash(gitSHA string) string {
+	hash := sha256.Sum256([]byte(strings.TrimSpace(gitSHA)))
+	return hex.EncodeToString(hash[:])
+}
 
-	// Create temporary directory for cloning
+func getRemoteHeadSHA(repoURL string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", repoURL, "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		slog.Warn("git ls-remote failed", "repo_url", repoURL, "error", err)
+		return ""
+	}
+	parts := strings.Fields(string(out))
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return ""
+}
+
+func processJob(job IngestionJob) {
+	slog.Info("Processing repository ingestion job", "repo_url", job.RepoURL, "repo_name", job.RepoName, "user_email", job.UserEmail)
+
+	// Step 1: Lightweight remote HEAD check (git ls-remote takes ~100ms and transfers a few bytes)
+	remoteHeadSHA := getRemoteHeadSHA(job.RepoURL)
+	var headRehash string
+	if remoteHeadSHA != "" {
+		headRehash = computeCommitRehash(remoteHeadSHA)
+
+		if db != nil {
+			// Check if this latest commit is already indexed in commits or recorded as last_commit_rehash
+			var exists bool
+			err := db.QueryRow(`
+				SELECT EXISTS (
+					SELECT 1 FROM commits WHERE rehash = $1
+				) OR EXISTS (
+					SELECT 1 FROM repos WHERE (repo_url = $2 OR repo_name = $3) AND last_commit_rehash = $1
+				)`, headRehash, job.RepoURL, job.RepoName).Scan(&exists)
+
+			if err == nil && exists {
+				slog.Info("Skipping repository ingestion: latest remote HEAD commit already indexed",
+					"repo", job.RepoName,
+					"head_sha", remoteHeadSHA,
+					"head_rehash", headRehash)
+
+				// Update sync timestamps without cloning or running JVM extractor
+				_, _ = db.Exec(`
+					UPDATE repos 
+					SET last_commit_rehash = $1, 
+					    last_synced_at = $2, 
+					    github_pushed_at = COALESCE(NULLIF($3, ''), github_pushed_at),
+					    repo_url = COALESCE(NULLIF($4, ''), repo_url),
+					    repo_name = COALESCE(NULLIF($5, ''), repo_name)
+					WHERE repo_url = $4 OR repo_name = $5`,
+					headRehash, time.Now().Unix(), job.GitHubPushedAt, job.RepoURL, job.RepoName)
+				return
+			}
+		}
+	}
+
+	// Step 2: Full ingestion needed — Create temporary directory for cloning
 	tmpDir, err := os.MkdirTemp("", "sourcerer-*")
 	if err != nil {
 		slog.Error("Failed to create temporary directory for clone", "error", err)
@@ -50,7 +115,7 @@ func processJob(job IngestionJob) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Clone repository (full clone without --depth 1 to preserve full commit history)
+	// Clone repository (full clone to preserve complete commit telemetry)
 	slog.Info("Cloning repository", "repo_url", job.RepoURL, "dir", tmpDir)
 	cmdClone := exec.Command("git", "clone", job.RepoURL, tmpDir)
 	cmdClone.Stdout = os.Stdout
@@ -60,7 +125,7 @@ func processJob(job IngestionJob) {
 		return
 	}
 
-	// Execute Java CLI
+	// Execute Java CLI headless pipeline
 	jarPath := "/root/sourcerer-app.jar"
 	// Fallback for local development if not running inside Docker
 	if _, err := os.Stat(jarPath); os.IsNotExist(err) {
@@ -80,6 +145,21 @@ func processJob(job IngestionJob) {
 		return
 	}
 
+	// Step 3: Record sync completion in PostgreSQL
+	if db != nil && headRehash != "" {
+		_, err := db.Exec(`
+			UPDATE repos 
+			SET last_commit_rehash = $1, 
+			    last_synced_at = $2, 
+			    github_pushed_at = COALESCE(NULLIF($3, ''), github_pushed_at),
+			    repo_url = COALESCE(NULLIF($4, ''), repo_url),
+			    repo_name = COALESCE(NULLIF($5, ''), repo_name)
+			WHERE repo_url = $4 OR repo_name = $5`,
+			headRehash, time.Now().Unix(), job.GitHubPushedAt, job.RepoURL, job.RepoName)
+		if err != nil {
+			slog.Warn("Failed to update repo sync metadata", "repo_url", job.RepoURL, "error", err)
+		}
+	}
+
 	slog.Info("Successfully ingested repository", "repo_url", job.RepoURL, "user_email", job.UserEmail)
 }
-

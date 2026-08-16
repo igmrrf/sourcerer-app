@@ -24,10 +24,12 @@
 | `backend/templates/library_detail.html` | Created | Individual library intelligence, import tokens, and contributor leaderboard |
 | `backend/templates/libraries_partial.html` | Created | HTMX dashboard card partial for recognized libraries and frameworks |
 | `backend/data/technologies.json` | Created | 38 curated technology definitions across 19 technical domains |
-| `backend/main.go` | Updated | Embedded `technologies.json`, startup catalog seeding, `getLibrariesCatalog`, `getLibraryDetail`, `getContributorLibraries`, and Chi routes |
-| `backend/main_test.go` | Updated | Added tests for Hall of Fame SVG generation, data models, and Awesome Libraries catalog |
-| `backend/schema.sql` | Updated | Added `technologies` table with category & language indexing |
-| `CHANGELOG.md` | Updated | Documented Hall of Fame and Awesome Libraries release |
+| `backend/worker.go` | Updated | Implemented 2-tier smart sync skipping via `git ls-remote HEAD` verification and commit rehash tracking |
+| `backend/api.go` | Updated | Added automatic `last_commit_rehash` and `last_synced_at` updates upon commit ingestion |
+| `backend/main.go` | Updated | Added Tier-1 GitHub `pushed_at` timestamp comparison to bypass unnecessary repo enqueueing |
+| `backend/main_test.go` | Updated | Added automated tests for commit rehash calculation and `IngestionJob` queueing |
+| `backend/schema.sql` | Updated | Added `repo_url`, `repo_name`, `last_commit_rehash`, `last_synced_at`, `github_pushed_at` to `repos` table |
+| `CHANGELOG.md` | Updated | Documented Smart Repository Sync & Skip Optimization release |
 
 ---
 

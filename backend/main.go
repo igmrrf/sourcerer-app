@@ -572,12 +572,42 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		slog.Info("Discovered repositories for user", "count", len(repos), "email", email)
+		skippedCount := 0
+		enqueuedCount := 0
+
 		for _, repo := range repos {
+			cloneURL := repo.GetCloneURL()
+			repoName := repo.GetFullName()
+			pushedAt := ""
+			if repo.PushedAt != nil {
+				pushedAt = repo.PushedAt.String()
+			}
+
+			// Fast Tier-1 verification: check if repo was already synced with identical pushed_at timestamp
+			if db != nil && pushedAt != "" {
+				var existingPushedAt string
+				var lastCommit string
+				err := db.QueryRow(`
+					SELECT COALESCE(github_pushed_at, ''), COALESCE(last_commit_rehash, '') 
+					FROM repos 
+					WHERE repo_url = $1 OR repo_name = $2`, cloneURL, repoName).Scan(&existingPushedAt, &lastCommit)
+				if err == nil && existingPushedAt != "" && existingPushedAt == pushedAt && lastCommit != "" {
+					slog.Debug("Fast-skipping repository: GitHub pushed_at timestamp unchanged", "repo", repoName, "pushed_at", pushedAt)
+					skippedCount++
+					continue
+				}
+			}
+
 			EnqueueJob(IngestionJob{
-				RepoURL:   repo.GetCloneURL(),
-				UserEmail: email,
+				RepoURL:        cloneURL,
+				RepoName:       repoName,
+				UserEmail:      email,
+				GitHubPushedAt: pushedAt,
 			})
+			enqueuedCount++
 		}
+
+		slog.Info("Repository sync planning complete", "total", len(repos), "skipped_unchanged", skippedCount, "enqueued_for_sync", enqueuedCount, "email", email)
 	}(email, token)
 
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)

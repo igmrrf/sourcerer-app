@@ -267,5 +267,44 @@ func TestAwesomeLibrariesCatalog(t *testing.T) {
 	}
 }
 
+func TestComputeCommitRehash(t *testing.T) {
+	gitSHA := "910f71ae9bdf94c9798bf081b891efab64a2b2f8"
+	rehash := computeCommitRehash(gitSHA)
+
+	if len(rehash) != 64 {
+		t.Fatalf("Expected 64-char sha256 hex string, got %d chars: %s", len(rehash), rehash)
+	}
+
+	// Verify consistency
+	rehash2 := computeCommitRehash(gitSHA)
+	if rehash != rehash2 {
+		t.Fatalf("computeCommitRehash output not deterministic: %s != %s", rehash, rehash2)
+	}
+}
+
+func TestIngestionJobEnqueue(t *testing.T) {
+	job := IngestionJob{
+		RepoURL:        "https://github.com/sourcerer-io/sourcerer-app.git",
+		RepoName:       "sourcerer-io/sourcerer-app",
+		UserEmail:      "test@example.com",
+		GitHubPushedAt: "2026-08-16T07:00:00Z",
+	}
+
+	if !EnqueueJob(job) {
+		t.Fatal("Expected EnqueueJob to succeed")
+	}
+
+	// Drain job from queue
+	select {
+	case received := <-JobQueue:
+		if received.RepoName != job.RepoName || received.GitHubPushedAt != job.GitHubPushedAt {
+			t.Fatalf("Dequeued job data mismatch: %+v != %+v", received, job)
+		}
+	default:
+		t.Fatal("Expected job in JobQueue")
+	}
+}
+
+
 
 

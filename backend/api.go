@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"backend/app"
 
@@ -190,6 +191,24 @@ func (a *API) HandlePostCommits(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
 		return
 	}
+
+	// Update last_commit_rehash for repo
+	if len(cg.Commits) > 0 {
+		var newestCommit *app.Commit
+		for _, c := range cg.Commits {
+			if newestCommit == nil || c.Date > newestCommit.Date {
+				newestCommit = c
+			}
+		}
+		if newestCommit != nil && newestCommit.RepoRehash != "" {
+			_, _ = a.db.Exec(`
+				UPDATE repos 
+				SET last_commit_rehash = $1, last_synced_at = $2 
+				WHERE rehash = $3`,
+				newestCommit.Rehash, time.Now().Unix(), newestCommit.RepoRehash)
+		}
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
