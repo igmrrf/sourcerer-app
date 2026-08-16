@@ -425,26 +425,6 @@
             color: var(--text-muted);
         }
 
-        /* Instructions Card */
-        .instructions-card code {
-            display: block;
-            background-color: #0f172a;
-            border: 1px solid var(--card-border);
-            color: #38bdf8;
-            padding: 0.85rem;
-            border-radius: var(--radius-sm);
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 0.85rem;
-            margin: 1rem 0;
-            word-break: break-all;
-        }
-
-        .instructions-card p {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            line-height: 1.5;
-        }
-
         .empty-state {
             color: var(--text-dim);
             font-style: italic;
@@ -541,14 +521,6 @@
             <!-- Analyzed Repositories -->
             <div class="card" hx-get="/dashboard/repos" hx-include="#email-select" hx-trigger="load, change from:#email-select, every 30s" hx-swap="innerHTML">
                 <div class="loading">Loading repositories...</div>
-            </div>
-            
-            <!-- Ingestion Guide -->
-            <div class="card instructions-card">
-                <h2>CLI Ingestion</h2>
-                <p>Run the headless analyzer on local git repositories to synchronize statistics in real-time:</p>
-                <code>java -jar sourcerer-app.jar --headless --path /path/to/repo</code>
-                <p>Metrics refresh automatically every 30 seconds.</p>
             </div>
         </div>
     </div>
