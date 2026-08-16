@@ -577,6 +577,8 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			opt.Page = resp.NextPage
+			// Gentle 50ms pause between pages to stay safely below GitHub secondary rate limits
+			time.Sleep(50 * time.Millisecond)
 		}
 
 		slog.Info("Discovered repositories across all pages for user", "total_count", len(allRepos), "email", email)
