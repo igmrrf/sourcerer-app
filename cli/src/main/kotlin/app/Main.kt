@@ -167,7 +167,7 @@ class Main(argv: Array<String>) {
     private fun doHeadless(options: Options) {
         val pathStr = options.path
         if (pathStr.isEmpty()) {
-            Logger.error("Path is required for headless mode")
+            Logger.error(IllegalArgumentException("Path is required for headless mode"), "Path is required for headless mode")
             return
         }
         val path = pathStr.toPath()
@@ -184,7 +184,7 @@ class Main(argv: Array<String>) {
             // auth
             val (_, error) = api.authorize()
             if (error != null && error.message != "") {
-                Logger.error("Auth error")
+                Logger.error(IllegalStateException("Auth error"), "Auth error")
             }
             
             val process = api.postProcessCreate(requestNumEntries = 1).getOrThrow()
@@ -199,7 +199,7 @@ class Main(argv: Array<String>) {
                 Logger.error(e, "Error while hashing")
             }
         } else {
-            Logger.error("No valid git repository found at specified path $pathStr")
+            Logger.error(IllegalArgumentException("No valid git repository found at specified path $pathStr"), "Invalid git repository")
         }
     }
 
