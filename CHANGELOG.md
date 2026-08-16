@@ -6,6 +6,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [1.2.0] - 2026-08-16
+
+Production-readiness pass. Ingestion was non-functional before this release.
+
+### Fixed
+- **Ingestion authentication (critical)**: the Kotlin CLI SHA-256 hashes every password before sending it, while the backend compared against the raw `API_INTERNAL_TOKEN`. Every ingestion request returned 401, so no commit data was ever stored. The backend now accepts either the raw token or its digest, in constant time, and `/api/auth` echoes back the presented credential instead of the raw token.
+- **Broken profile and badge links**: templates linked to `/p/{email}` and `/badge/{email}.svg` while the handlers are keyed on `profile_id`, so every link 404'd. `ProfileData` and `ContributorStat` now carry the profile id and all links are built from it.
+- **Hardcoded `localhost:8080` in README embed snippets**: snippets now render from `PUBLIC_BASE_URL` (or the proxy-forwarded scheme and host).
+- **`users` table was never written**, so the Hall of Fame "Sourcerer member" halo could never appear. The OAuth callback now upserts the account.
+- **Private repositories were enqueued but unclonable** (the OAuth scope is `public_repo` and the worker clones anonymously); they are now skipped at discovery.
+- **Unbounded subprocesses**: `git clone` and the extractor run under 15- and 30-minute timeouts with credential prompts disabled. A single hung repository previously stalled ingestion permanently.
+- **Empty extractor jar passed startup validation**: a zero-byte placeholder satisfied the old existence check and failed once per job. Startup now rejects missing, empty and directory jars.
+- Errors from `rows.Err()`, profile persistence and `crypto/rand` are checked and logged instead of discarded.
+- **The extractor jar could not be built at all.** `cli/build.gradle` passed `'""'` as the value of three `String` buildConfig fields, but the plugin quotes String values itself, so it emitted `= """"` and `compileBuildConfig` failed. Nothing downstream of the extractor could ever have run.
+- **The proxy crash-looped whenever the backend was not yet healthy.** nginx resolves upstream hostnames at startup and refuses to start if they do not resolve, so `depends_on: [backend]` (merely "started") took the proxy down with it. Now waits for `service_healthy`.
+- **Local development could not log in.** The `session` and `oauth_state` cookies were unconditionally `Secure`, so a browser served over plain HTTP discarded both — the OAuth callback failed with "State cookie not found". `Secure` is now relaxed only when `ENV=development`.
+- **`ENV=development` returned 500 on every page inside Docker**, because template hot-reload did a hard `ParseGlob("templates/*.html")` and the image has no `templates/` beside the binary (they are embedded). Now falls back to the embedded set.
+
+### Added
+- `docker-compose.dev.yml`: local overlay serving plain HTTP on `127.0.0.1:8080`, mounting `backend/templates` for hot reload, and parking the TLS proxy behind a profile — matching a GitHub OAuth app whose callback is `http://localhost:8080/auth/github/callback`.
+
+### Security
+- **Session cookies now expire.** The signed payload was the bare email address, so a captured cookie stayed valid forever. Expiry is signed in and enforced on every request; cookies in the old format are rejected.
+- **Contributor email addresses are no longer published.** Hall of Fame HTML/SVG, the library leaderboards and `/api/hall-of-fame/{repo}` render a masked form, and author names that are themselves addresses are masked too.
+- **Security headers are actually served over TLS.** nginx's `add_header` inheritance is all-or-nothing per level, so the `Strict-Transport-Security` header in the HTTPS server block silently dropped every header set at `http` level. Application headers moved to the backend; nginx sets only HSTS. Adds `Content-Security-Policy`.
+- **CORS is no longer wildcard-on-everything.** Only anonymous read-only endpoints are embeddable; session-backed routes send no CORS grant. `CORS_ALLOWED_ORIGINS` allows explicit credentialed origins.
+- The `/api/auth` `Token` cookie gained `Secure`, `SameSite=Strict` and a 12h lifetime.
+- The ingestion API fails closed when `API_INTERNAL_TOKEN` is unset outside development.
+- **Dozzle** moved behind a `debug` profile, bound to `127.0.0.1`, with a read-only Docker socket. It was published on all interfaces with no authentication and a writable root-equivalent socket.
+- The backend container runs as an unprivileged user on pinned base images; it executes untrusted repository content.
+
+### Changed
+- nginx configuration is a template rendered from `SERVER_NAME`, `SSL_CERTIFICATE` and `SSL_CERTIFICATE_KEY`, so switching between local self-signed and Let's Encrypt certificates no longer means editing the config by hand.
+- The proxy reloads every 6h so renewed certificates take effect without a restart.
+- `./build_cli.sh` and a `cli-build` Compose profile build the extractor jar in a pinned Gradle container.
+- Compose gained healthchecks, memory limits and required-variable guards.
+- Graceful shutdown drains the in-flight ingestion job instead of killing a half-written clone.
+- Removed dead upstream Sourcerer Inc. deployment tooling (`cli/deploy`, `cli/do.sh`, `cli/Dockerfile`, `cli/src/install`), superseded design notes, and committed debug artifacts.
+- Added a root `README.md` covering configuration and deployment.
+
+---
+
 ## [1.1.1] - 2026-08-16
 
 ### Security Fixes

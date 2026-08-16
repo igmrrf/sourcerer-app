@@ -594,7 +594,7 @@
                     <span>{{.User.Name}}</span>
                 </div>
                 <a href="/auth/github/login" class="btn btn-outline" title="Re-sync repositories from GitHub">&#8635; Sync Repos</a>
-                <a href="/p/{{.User.Email}}" class="btn btn-outline" target="_blank">&#128100; Public Profile</a>
+                <a href="/p/{{.User.PublicProfileID}}" class="btn btn-outline" target="_blank">&#128100; Public Profile</a>
                 <a href="/auth/logout" class="btn btn-outline">Logout</a>
                 {{else}}
                 <a href="/auth/github/login" class="btn btn-github">
@@ -715,8 +715,8 @@
             </div>
             <div class="footer-links">
                 {{if .User}}
-                <a href="/p/{{.User.Email}}">Public Portfolio</a>
-                <a href="/badge/{{.User.Email}}.svg" target="_blank">SVG Badge</a>
+                <a href="/p/{{.User.PublicProfileID}}">Public Portfolio</a>
+                <a href="/badge/{{.User.PublicProfileID}}.svg" target="_blank">SVG Badge</a>
                 {{end}}
                 <a href="/healthz" target="_blank">System Health</a>
             </div>

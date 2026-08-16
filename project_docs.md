@@ -489,30 +489,75 @@ For a complete record of all versions, bug fixes, security patches, and feature 
 
 ## 11. Known Issues & Production Readiness Audit
 
-> **Status: NOT production ready.** Audit performed against branch `develop` at commit `51f35cc`.
-> Verification performed: `go vet ./...`, `go build ./...`, `go test ./...` (all pass); chi route
-> precedence for `/{repo}` vs `/{repo}.svg` verified empirically (no defect). The full stack was
-> **not** booted — no `.env` and no built CLI jar were present — so runtime-only defects may remain
-> undiscovered. Items below were found by source inspection.
+> **Status: remediated and verified end to end.** The defects catalogued in 11.2–11.4 were found
+> against commit `51f35cc` and are fixed in `1.2.0`; the subsections are retained as a record of
+> what was wrong and why.
 >
-> Section 5.1 and Section 7.3 of this document describe the ingestion API as fully authenticated.
-> That description is **incorrect** as implemented — see **SEC-01**.
+> Verification performed: `go vet ./...` and `go test ./...` pass; the rendered nginx config passes
+> `nginx -t`; the extractor jar builds (`./build_cli.sh`, 14.8 MB); and the full stack was booted
+> and driven through a real GitHub OAuth login, which discovered **121 public repositories**,
+> queued them, and ingested them through clone → extract → protobuf API → Postgres with zero
+> errors. Dashboard, public profile, SVG badge, embed snippets and a 146-contributor Hall of Fame
+> were all confirmed rendering live with masked addresses and profile-id-keyed links.
+>
+> The 11.2–11.4 subsections below describe the **pre-fix** state. See 11.1 for what each item's
+> resolution actually was, and `CHANGELOG.md` §1.2.0 for the full list.
 
 ### 11.1 Summary
 
-| Severity | Count | IDs |
+All items previously catalogued are resolved. Several were only *partially* fixed by the
+`1.1.1` pass, and two new critical defects surfaced during re-review:
+
+| ID | Resolution |
+|---|---|
+| SEC-01 | `/api/auth` validates HTTP Basic credentials and echoes the presented credential, never the raw token. |
+| SEC-02 | CORS restricted to anonymous read-only endpoints; credentialed origins require `CORS_ALLOWED_ORIGINS`. |
+| SEC-03 | `RemoteAddr` trust removed entirely. |
+| SEC-04 | Contributor emails masked on every anonymous surface (HTML, SVG and JSON); author names that are themselves addresses are masked too. |
+| SEC-05 | Cookies carry `Secure`/`SameSite`; sessions now carry a signed expiry; TLS config templated per environment. |
+| BUG-01 | `repo_url`/`repo_name` populated on ingest; Tier-1 skip is live. |
+| BUG-02 | Private repositories skipped at discovery instead of being enqueued. |
+| BUG-03 | Rune-safe truncation. |
+| BUG-04 | Embed snippets and the SVG footer render from `PUBLIC_BASE_URL`. |
+| BUG-05 | Default API base path documented; the CLI runs inside the backend container where it is correct. |
+| BUG-06 | Trending window falls back relative to the latest commit; new-contributor list has a fallback. |
+| BUG-07 | Failed downloads delete the partial file and are negatively cached. |
+| OPS-01 | Queue remains single-consumer by design (the extractor's on-disk config is shared and rewritten per run); serialization is now explicit and documented, with bounded subprocess timeouts. |
+| OPS-02 | Schema applied idempotently at startup. |
+| OPS-03 | Jar built by `./build_cli.sh` / the `cli-build` Compose profile; startup rejects missing, empty or directory jars. |
+| OPS-04 | Production start fails fast on missing secrets; ingestion API fails closed. |
+| OPS-05 | `isDevMode()` reads only `ENV`. |
+| OPS-06 | Pinned base images; backend runs as an unprivileged user. |
+| OPS-07 | nginx `limit_req` provides the rate limit; `ThrottleBacklog` remains as a concurrency bound. |
+| OPS-08 | Dashboard aggregations covered by the composite indexes in `schema.sql`. |
+| OPS-09 | Build runs in a pinned Gradle container via `./build_cli.sh`. |
+| OPS-10 | Analytics disabled (`IS_GA_ENABLED=false`, `SENTRY_ENABLED=false`). |
+| OPS-11 | Added regression coverage for auth, session expiry, email masking, CORS, headers, jar validation and template rendering (`backend/security_test.go`). |
+| OPS-12 | Shutdown drains the in-flight ingestion job. |
+| OPS-13 | Backend uses `expose`; Dozzle bound to loopback behind a `debug` profile. |
+| OPS-14 | This section and `README.md` updated. |
+
+**Found during re-review and fixed in `1.2.0`:**
+
+| ID | Severity | Defect |
 |---|---|---|
-| Critical | 2 | SEC-01, SEC-02 |
-| High | 9 | SEC-03, SEC-04, SEC-05, BUG-01, BUG-02, OPS-01, OPS-02, OPS-03, OPS-04 |
-| Medium | 12 | BUG-03 – BUG-07, OPS-05 – OPS-11 |
-| Low | 3 | OPS-12, OPS-13, OPS-14 |
+| SEC-06 | Critical | Dozzle published on all interfaces with a writable Docker socket and no authentication — root-equivalent host access. |
+| BUG-08 | Critical | The CLI SHA-256 hashes every password before sending it, while the backend compared the raw token. All ingestion returned 401; no commit data was ever stored. |
+| BUG-09 | High | Templates linked to `/p/{email}` and `/badge/{email}.svg`; both handlers key on `profile_id`, so every public profile and badge link 404'd. |
+| BUG-10 | High | The `users` table was never written, so `is_sourcerer` was permanently false and the Hall of Fame member tier was dead. |
+| SEC-07 | High | Session cookies signed the bare email with no expiry — a captured cookie was valid forever and logout was client-side only. |
+| SEC-08 | High | nginx `add_header` inheritance meant the HSTS header in the HTTPS server block silently dropped every security header declared at `http` level. |
+| BUG-11 | Medium | `git clone` and the extractor ran without timeouts against a single-consumer queue; one hung repository stalled ingestion permanently. |
 
-**Minimum set to resolve before any public deployment:** ~~SEC-01, SEC-02, SEC-04, SEC-05, BUG-01, BUG-02, OPS-02, OPS-03~~ **(All resolved in recent progress).**
+**Found while booting the stack end to end (these are why "not booted" mattered):**
 
-### Recent Progress Achieved
-- **Security & Authorization**: SEC-01 (API Auth), SEC-02 (CORS), SEC-04 (Public profiles & badges), and SEC-05 (TLS/Cookies) have all been completely resolved. 
-- **Operations & Bug Fixes**: BUG-01 (Repo Metadata), BUG-02 (OAuth scopes), OPS-02 (Versioned Migrations using idempotent queries), and OPS-03 (JAR startup validation) are resolved.
-- **Static Caching**: The public profiles and badge SVG generation have been rebuilt to use a statically cached `public_profiles` database table, completely abstracting read access from live database metrics.
+| ID | Severity | Defect |
+|---|---|---|
+| BUG-12 | Critical | `cli/build.gradle` passed `'""'` for three `String` buildConfig fields; the plugin quotes String values itself, so it emitted `= """"` and `compileBuildConfig` failed. The extractor jar could never be built. |
+| BUG-13 | High | The proxy crash-looped alongside an unhealthy backend: nginx resolves upstreams at startup and `depends_on: [backend]` only waits for "started". |
+| BUG-14 | High | `session` and `oauth_state` cookies were unconditionally `Secure`, so local development over plain HTTP could never complete a login. |
+| BUG-15 | High | `ENV=development` inside the container returned 500 on every page — hot-reload `ParseGlob` found no `templates/` beside the binary, since they are embedded. |
+| OPS-15 | Low | Changing `POSTGRES_PASSWORD` in `.env` does not affect an existing volume; Postgres only applies credentials on first initialization. Resync with `ALTER USER` or recreate the volume. |
 
 ---
 

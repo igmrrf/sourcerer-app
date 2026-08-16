@@ -387,7 +387,7 @@
             <ul class="leaderboard-list">
                 {{range $i, $c := .Contributors}}
                 <li>
-                    <a href="/p/{{$c.Email}}" class="leaderboard-item">
+                    <a href="{{$c.ProfileURL}}" class="leaderboard-item">
                         <div class="contributor-meta">
                             <span class="rank-badge {{if eq $i 0}}rank-1{{else if eq $i 1}}rank-2{{else if eq $i 2}}rank-3{{else}}rank-other{{end}}">
                                 {{if eq $i 0}}&#127941;{{else if eq $i 1}}2{{else if eq $i 2}}3{{else}}{{add $i 1}}{{end}}

@@ -1,1 +1,0 @@
-export REPLICAS="2"

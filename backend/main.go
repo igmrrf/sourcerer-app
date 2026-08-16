@@ -16,12 +16,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
-
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -34,11 +32,23 @@ import (
 // Configure OAuth
 var sessionSecret []byte
 
+// sessionTTL bounds how long a signed session cookie stays valid. The expiry is
+// part of the signed payload, so a stolen cookie cannot outlive it even though
+// sessions are stateless.
+const sessionTTL = 24 * time.Hour
+
+// signCookie signs "<value>|<expiryUnix>" so that verification is
+// self-contained: tampering breaks the MAC and replay stops at the expiry.
 func signCookie(value string) string {
+	return signCookieAt(value, time.Now().Add(sessionTTL))
+}
+
+func signCookieAt(value string, expiry time.Time) string {
+	payload := value + "|" + strconv.FormatInt(expiry.Unix(), 10)
 	mac := hmac.New(sha256.New, sessionSecret)
-	mac.Write([]byte(value))
+	mac.Write([]byte(payload))
 	signature := hex.EncodeToString(mac.Sum(nil))
-	encoded := base64.URLEncoding.EncodeToString([]byte(value))
+	encoded := base64.URLEncoding.EncodeToString([]byte(payload))
 	return encoded + "." + signature
 }
 
@@ -57,7 +67,21 @@ func verifyCookie(signed string) (string, bool) {
 	if !hmac.Equal([]byte(parts[1]), []byte(expected)) {
 		return "", false
 	}
-	return string(decoded), true
+
+	payload := string(decoded)
+	sep := strings.LastIndex(payload, "|")
+	if sep < 0 {
+		// Unversioned cookie issued before expiries were signed in.
+		return "", false
+	}
+	expiryUnix, err := strconv.ParseInt(payload[sep+1:], 10, 64)
+	if err != nil {
+		return "", false
+	}
+	if time.Now().Unix() >= expiryUnix {
+		return "", false
+	}
+	return payload[:sep], true
 }
 
 func getSessionEmail(r *http.Request) string {
@@ -105,21 +129,121 @@ func isDevMode() bool {
 	return false
 }
 
+// publicReadOnlyCORSPrefixes are the anonymous, read-only JSON endpoints that
+// third-party pages (README embeds, dashboards) are meant to fetch. Everything
+// else — session-backed dashboard partials and the ingestion API — gets no CORS
+// headers at all, so a foreign origin can never read it.
+var publicReadOnlyCORSPrefixes = []string{
+	"/api/hall-of-fame/",
+	"/api/libraries",
+}
+
+func allowedCORSOrigins() map[string]bool {
+	raw := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if raw == "" {
+		return nil
+	}
+	allowed := make(map[string]bool)
+	for _, o := range strings.Split(raw, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			allowed[o] = true
+		}
+	}
+	return allowed
+}
+
+var corsOrigins = allowedCORSOrigins()
+
+func isPublicReadOnlyPath(path string) bool {
+	for _, prefix := range publicReadOnlyCORSPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			switch {
+			case corsOrigins[origin]:
+				// Explicitly configured origin: credentials are permitted.
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				w.Header().Add("Vary", "Origin")
+			case isPublicReadOnlyPath(r.URL.Path):
+				// Anonymous public data only; never credentialed.
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			}
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// contentSecurityPolicy matches what the templates actually load: htmx from
+// unpkg (SRI-pinned), Google Fonts, inline styles/scripts emitted by the
+// templates, and same-origin SVG badges.
+const contentSecurityPolicy = "default-src 'self'; " +
+	"script-src 'self' 'unsafe-inline' https://unpkg.com; " +
+	"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+	"font-src 'self' https://fonts.gstatic.com; " +
+	"img-src 'self' data:; " +
+	"connect-src 'self'; " +
+	"frame-ancestors 'none'; " +
+	"base-uri 'self'; " +
+	"form-action 'self'"
+
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// maskEmail reduces an address to a non-harvestable display form:
+// "ada@example.com" becomes "ad***@example.com".
+func maskEmail(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at <= 0 {
+		if len(email) <= 2 {
+			return "***"
+		}
+		return email[:2] + "***"
+	}
+	local, domain := email[:at], email[at+1:]
+	if len(local) <= 2 {
+		return "***@" + domain
+	}
+	return local[:2] + "***@" + domain
+}
+
 // renderTemplate renders HTML templates, dynamically hot-reloading from disk in dev mode
 // or using embedded templates in production mode for optimal performance.
 func renderTemplate(w http.ResponseWriter, name string, data any) {
-	var t *template.Template
-	var err error
-
+	t := prodTmpl
 	if isDevMode() {
-		t, err = template.New("").Funcs(templateFuncs).ParseGlob("templates/*.html")
-		if err != nil {
-			slog.Error("Failed to parse templates from disk (hot reload)", "error", err)
-			http.Error(w, "Template parse error", http.StatusInternalServerError)
-			return
+		// Hot-reload from disk when the templates are actually there. Running
+		// the production image with ENV=development has no templates/ next to
+		// the binary (they are embedded), so fall back rather than 500.
+		if reloaded, err := template.New("").Funcs(templateFuncs).ParseGlob("templates/*.html"); err != nil {
+			slog.Debug("Template hot reload unavailable, using embedded templates", "error", err)
+		} else {
+			t = reloaded
 		}
-	} else {
-		t = prodTmpl
 	}
 
 	if err := t.ExecuteTemplate(w, name, data); err != nil {
@@ -192,13 +316,26 @@ func main() {
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := db.Ping(); err != nil {
+		// In production an unreachable database means every request would
+		// serve empty or broken data; fail fast so the orchestrator restarts
+		// us once Postgres is actually up.
+		if !isDevMode() {
+			slog.Error("Cannot reach database on startup", "error", err)
+			os.Exit(1)
+		}
 		slog.Warn("Could not ping database on startup. Ensure Postgres is running", "error", err)
 	} else {
 		slog.Info("Successfully connected to PostgreSQL")
-		// Automatically apply database schema
+		// Automatically apply database schema. The statements are idempotent
+		// (CREATE ... IF NOT EXISTS / ADD COLUMN IF NOT EXISTS), so a failure
+		// here means the schema is genuinely wrong — running on against it
+		// would produce query errors on every request.
 		if schemaSQL != "" {
 			if _, err := db.Exec(schemaSQL); err != nil {
 				slog.Error("Failed to apply database schema", "error", err)
+				if !isDevMode() {
+					os.Exit(1)
+				}
 			} else {
 				slog.Info("Database schema verified and applied successfully")
 			}
@@ -209,19 +346,21 @@ func main() {
 
 	api := &API{db: db}
 
-	jarPath := "/root/sourcerer-app.jar"
-	if _, err := os.Stat(jarPath); os.IsNotExist(err) {
-		jarPath = filepath.Join("..", "cli", "build", "libs", "sourcerer-app.jar")
-	}
-	if stat, err := os.Stat(jarPath); err != nil || stat.IsDir() {
-		slog.Error("sourcerer-app.jar not found or is a directory. Make sure to build the CLI.", "path", jarPath)
+	jarPath, err := resolveJarPath()
+	if err != nil {
+		slog.Error("Ingestion CLI unavailable. Build it with ./build_cli.sh (or `docker compose --profile build run --rm cli-build`).", "error", err)
 		os.Exit(1)
 	}
+	slog.Info("Ingestion CLI located", "path", jarPath)
 
 	// Start background worker
 	ctxWorker, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
-	go StartWorker(ctxWorker)
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		StartWorker(ctxWorker)
+	}()
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -230,21 +369,8 @@ func main() {
 	// Rate limiting / request throttling (protects backend against excessive concurrent requests)
 	r.Use(middleware.ThrottleBacklog(100, 50, 5*time.Second))
 
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
-			if origin != "" {
-				w.Header().Set("Access-Control-Allow-Origin", "*")
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			}
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	})
+	r.Use(securityHeadersMiddleware)
+	r.Use(corsMiddleware)
 
 	// API routes for Sourcerer CLI ingestion
 	r.Mount("/api", api.Routes())
@@ -283,13 +409,11 @@ func main() {
 			PublicProfileID string
 		}
 
-		var profileID string
-		err := db.QueryRow("SELECT profile_id FROM public_profiles WHERE email = $1", sessionEmail).Scan(&profileID)
-		if err == sql.ErrNoRows {
-			b := make([]byte, 16)
-			rand.Read(b)
-			profileID = hex.EncodeToString(b)
-			db.Exec("INSERT INTO public_profiles (email, profile_id) VALUES ($1, $2)", sessionEmail, profileID)
+		profileID, err := ensureProfileID(sessionEmail)
+		if err != nil {
+			slog.Error("Failed to resolve public profile id", "email", sessionEmail, "error", err)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
 		}
 
 		user := &UserInfo{Name: sessionEmail, Email: sessionEmail, PublicProfileID: profileID}
@@ -315,14 +439,8 @@ func main() {
 		var totalLinesAdded int
 		var totalLinesDeleted int
 
-		if email != "" {
-			if err := db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", email).Scan(&totalCommits, &totalLinesAdded, &totalLinesDeleted); err != nil && err != sql.ErrNoRows {
-				slog.Error("Error querying stats for author", "email", email, "error", err)
-			}
-		} else {
-			if err := db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits").Scan(&totalCommits, &totalLinesAdded, &totalLinesDeleted); err != nil && err != sql.ErrNoRows {
-				slog.Error("Error querying overall stats", "error", err)
-			}
+		if err := db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", email).Scan(&totalCommits, &totalLinesAdded, &totalLinesDeleted); err != nil && err != sql.ErrNoRows {
+			slog.Error("Error querying stats for author", "email", email, "error", err)
 		}
 
 		data := struct {
@@ -343,47 +461,7 @@ func main() {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		var rows *sql.Rows
-		var err error
-
-		if email != "" {
-			rows, err = db.Query(`SELECT s.tech, SUM(s.num_lines_added) as lines FROM commit_stats s JOIN commits c ON c.rehash = s.commit_rehash WHERE c.author_email = $1 GROUP BY s.tech ORDER BY lines DESC LIMIT 10`, email)
-		} else {
-			rows, err = db.Query("SELECT tech, SUM(num_lines_added) as lines FROM commit_stats GROUP BY tech ORDER BY lines DESC LIMIT 10")
-		}
-
-		if err != nil {
-			slog.Error("Error querying languages", "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer rows.Close()
-
-		type LangStat struct {
-			Tech       string
-			Lines      int
-			Percentage int
-		}
-		var stats []LangStat
-		totalLines := 0
-		for rows.Next() {
-			var s LangStat
-			if err := rows.Scan(&s.Tech, &s.Lines); err == nil {
-				if s.Tech != "" {
-					stats = append(stats, s)
-					totalLines += s.Lines
-				}
-			}
-		}
-		if totalLines > 0 {
-			for i := range stats {
-				stats[i].Percentage = int((float64(stats[i].Lines) / float64(totalLines)) * 100.0)
-				if stats[i].Percentage == 0 && stats[i].Lines > 0 {
-					stats[i].Percentage = 1
-				}
-			}
-		}
-		renderTemplate(w, "languages.html", stats)
+		renderTemplate(w, "languages.html", getLanguagesForEmail(email))
 	})
 
 	r.Get("/dashboard/repos", func(w http.ResponseWriter, r *http.Request) {
@@ -392,51 +470,7 @@ func main() {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		type RepoItem struct {
-			Rehash       string
-			CommitCount  int
-			LinesAdded   int
-			LinesDeleted int
-		}
-		var repos []RepoItem
-		var rows *sql.Rows
-		var err error
-
-		if email != "" {
-			rows, err = db.Query(`
-				SELECT r.rehash, COUNT(c.rehash) as commit_count, 
-				       COALESCE(SUM(c.num_lines_added), 0) as lines_added, 
-				       COALESCE(SUM(c.num_lines_deleted), 0) as lines_deleted
-				FROM repos r
-				JOIN commits c ON c.repo_rehash = r.rehash
-				WHERE c.author_email = $1
-				GROUP BY r.rehash
-				ORDER BY commit_count DESC`, email)
-		} else {
-			rows, err = db.Query(`
-				SELECT r.rehash, COUNT(c.rehash) as commit_count, 
-				       COALESCE(SUM(c.num_lines_added), 0) as lines_added, 
-				       COALESCE(SUM(c.num_lines_deleted), 0) as lines_deleted
-				FROM repos r
-				LEFT JOIN commits c ON c.repo_rehash = r.rehash
-				GROUP BY r.rehash
-				ORDER BY commit_count DESC`)
-		}
-
-		if err != nil {
-			slog.Error("Error querying repos", "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var repo RepoItem
-			if err := rows.Scan(&repo.Rehash, &repo.CommitCount, &repo.LinesAdded, &repo.LinesDeleted); err == nil {
-				repos = append(repos, repo)
-			}
-		}
-		renderTemplate(w, "repos.html", repos)
+		renderTemplate(w, "repos.html", getReposForEmail(email))
 	})
 
 	r.Get("/dashboard/facts", handleDashboardFacts)
@@ -462,8 +496,6 @@ func main() {
 	r.Get("/api/libraries", handleLibrariesCatalogAPI)
 	r.Get("/api/libraries/{tech}", handleLibraryDetailAPI)
 	r.Get("/dashboard/libraries", handleDashboardLibraries)
-
-
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -491,27 +523,72 @@ func main() {
 	<-quit
 	slog.Info("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("Server forced to shutdown", "error", err)
-		os.Exit(1)
+	}
+
+	// Let the ingestion worker finish the repository it is currently on rather
+	// than killing a half-written clone. Jobs still queued are dropped; they
+	// are re-enqueued on the user's next login.
+	cancelWorker()
+	select {
+	case <-workerDone:
+		slog.Info("Ingestion worker drained")
+	case <-ctx.Done():
+		slog.Warn("Ingestion worker did not drain before shutdown deadline")
 	}
 
 	slog.Info("Server exited cleanly")
 }
 
+// ensureProfileID returns the caller's stable public profile identifier,
+// minting one on first use. Every public URL (/p, /u, /badge) is keyed on this
+// value rather than on an email address.
+func ensureProfileID(email string) (string, error) {
+	var profileID string
+	err := db.QueryRow("SELECT profile_id FROM public_profiles WHERE email = $1", email).Scan(&profileID)
+	if err == nil && profileID != "" {
+		return profileID, nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return "", err
+	}
+
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	profileID = hex.EncodeToString(b)
+
+	// Concurrent dashboard loads can race here; the upsert keeps whichever id
+	// landed first and returns it.
+	err = db.QueryRow(`
+		INSERT INTO public_profiles (email, profile_id) VALUES ($1, $2)
+		ON CONFLICT (email) DO UPDATE SET profile_id = COALESCE(public_profiles.profile_id, EXCLUDED.profile_id)
+		RETURNING profile_id`, email, profileID).Scan(&profileID)
+	if err != nil {
+		return "", err
+	}
+	return profileID, nil
+}
+
 func handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
 	stateBytes := make([]byte, 32)
-	rand.Read(stateBytes)
+	if _, err := rand.Read(stateBytes); err != nil {
+		slog.Error("Failed to generate OAuth state", "error", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
 	state := hex.EncodeToString(stateBytes)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   !isDevMode(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   600,
 		Path:     "/",
@@ -573,15 +650,24 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("User logged in via GitHub OAuth", "user", user.GetLogin(), "email", email)
 
-	// Set a signed session cookie
+	// Register the account so Hall of Fame can mark it as a Sourcerer member.
+	if _, err := db.Exec(`
+		INSERT INTO users (email, primary_email, verified) VALUES ($1, TRUE, TRUE)
+		ON CONFLICT (email) DO UPDATE SET primary_email = TRUE, verified = TRUE`, email); err != nil {
+		slog.Error("Failed to record authenticated user", "email", email, "error", err)
+	}
+
+	// Set a signed session cookie. Secure is relaxed only in development,
+	// where the app is served over plain HTTP and the browser would otherwise
+	// discard the cookie, making local login impossible.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    signCookie(email),
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   !isDevMode(),
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   86400,
+		MaxAge:   int(sessionTTL.Seconds()),
 	})
 
 	// Fetch repos in background to avoid blocking request
@@ -614,6 +700,15 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		enqueuedCount := 0
 
 		for _, repo := range allRepos {
+			// The OAuth scope is public_repo and the worker clones anonymously,
+			// so private repositories can never be fetched. Skip rather than
+			// queueing jobs that are guaranteed to fail.
+			if repo.GetPrivate() {
+				slog.Debug("Skipping private repository: anonymous clone not possible", "repo", repo.GetFullName())
+				skippedCount++
+				continue
+			}
+
 			cloneURL := repo.GetCloneURL()
 			repoName := repo.GetFullName()
 			pushedAt := ""
@@ -657,7 +752,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   !isDevMode(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
@@ -671,42 +766,83 @@ type LangStat struct {
 	Percentage int
 }
 
-func getLanguagesForEmail(email string) []LangStat {
-	var rows *sql.Rows
-	var err error
-
-	if email != "" {
-		rows, err = db.Query(`SELECT s.tech, SUM(s.num_lines_added) as lines FROM commit_stats s JOIN commits c ON c.rehash = s.commit_rehash WHERE c.author_email = $1 GROUP BY s.tech ORDER BY lines DESC LIMIT 10`, email)
-	} else {
-		rows, err = db.Query("SELECT tech, SUM(num_lines_added) as lines FROM commit_stats GROUP BY tech ORDER BY lines DESC LIMIT 10")
+// withPercentages fills in each language's share of the total, rounding any
+// non-zero contribution up to 1% so small languages stay visible.
+func withPercentages(stats []LangStat) []LangStat {
+	totalLines := 0
+	for _, s := range stats {
+		totalLines += s.Lines
 	}
+	if totalLines <= 0 {
+		return stats
+	}
+	for i := range stats {
+		stats[i].Percentage = int((float64(stats[i].Lines) / float64(totalLines)) * 100.0)
+		if stats[i].Percentage == 0 && stats[i].Lines > 0 {
+			stats[i].Percentage = 1
+		}
+	}
+	return stats
+}
 
+func getLanguagesForEmail(email string) []LangStat {
+	rows, err := db.Query(`
+		SELECT s.tech, SUM(s.num_lines_added) as lines
+		FROM commit_stats s
+		JOIN commits c ON c.rehash = s.commit_rehash
+		WHERE c.author_email = $1
+		GROUP BY s.tech
+		ORDER BY lines DESC
+		LIMIT 10`, email)
 	if err != nil {
-		slog.Error("Error querying languages", "error", err)
+		slog.Error("Error querying languages", "email", email, "error", err)
 		return nil
 	}
 	defer rows.Close()
 
 	var stats []LangStat
-	totalLines := 0
 	for rows.Next() {
 		var s LangStat
-		if err := rows.Scan(&s.Tech, &s.Lines); err == nil {
-			if s.Tech != "" {
-				stats = append(stats, s)
-				totalLines += s.Lines
-			}
+		if err := rows.Scan(&s.Tech, &s.Lines); err == nil && s.Tech != "" {
+			stats = append(stats, s)
 		}
 	}
-	if totalLines > 0 {
-		for i := range stats {
-			stats[i].Percentage = int((float64(stats[i].Lines) / float64(totalLines)) * 100.0)
-			if stats[i].Percentage == 0 && stats[i].Lines > 0 {
-				stats[i].Percentage = 1
-			}
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating languages", "email", email, "error", err)
+	}
+	return withPercentages(stats)
+}
+
+// getReposForEmail lists the repositories the given author has commits in,
+// ordered by contribution volume. Shared by the dashboard partial and the
+// public profile so both stay consistent.
+func getReposForEmail(email string) []RepoInfo {
+	rows, err := db.Query(`
+		SELECT r.rehash, COUNT(c.rehash) as commit_count,
+		       COALESCE(SUM(c.num_lines_added), 0) as lines_added,
+		       COALESCE(SUM(c.num_lines_deleted), 0) as lines_deleted
+		FROM repos r
+		JOIN commits c ON c.repo_rehash = r.rehash
+		WHERE c.author_email = $1
+		GROUP BY r.rehash
+		ORDER BY commit_count DESC`, email)
+	if err != nil {
+		slog.Error("Error querying repos", "email", email, "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var repos []RepoInfo
+	for rows.Next() {
+		var repo RepoInfo
+		if err := rows.Scan(&repo.Rehash, &repo.CommitCount, &repo.LinesAdded, &repo.LinesDeleted); err == nil {
+			repos = append(repos, repo)
 		}
 	}
-	return stats
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating repos", "email", email, "error", err)
+	}
+	return repos
 }
 
 type FactsData struct {
@@ -936,15 +1072,21 @@ type RepoInfo struct {
 }
 
 type ProfileData struct {
-	Name         string
-	Email        string
-	TotalCommits int
-	LinesAdded   int
-	LinesDeleted int
-	Languages    []LangStat
-	Facts        FactsData
-	Libraries    []TechnologyMeta
-	Repos        []RepoInfo
+	// ProfileID is the opaque public identifier; every shareable URL is built
+	// from it so email addresses never appear in links.
+	ProfileID string
+	Name      string
+	// Email is the masked display form. The raw address is never serialized
+	// into the cached profile JSON that anonymous visitors receive.
+	Email         string
+	TotalCommits  int
+	LinesAdded    int
+	LinesDeleted  int
+	Languages     []LangStat
+	Facts         FactsData
+	Libraries     []TechnologyMeta
+	Repos         []RepoInfo
+	PublicBaseURL string
 }
 
 func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
@@ -957,6 +1099,9 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 	var cachedJSON sql.NullString
 	err := db.QueryRow("SELECT email, profile_data_json FROM public_profiles WHERE profile_id = $1", profileID).Scan(&email, &cachedJSON)
 	if err != nil {
+		if err != sql.ErrNoRows {
+			slog.Error("Failed to look up public profile", "profile_id", profileID, "error", err)
+		}
 		http.Error(w, "Profile not found", http.StatusNotFound)
 		return
 	}
@@ -973,56 +1118,48 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error parsing profile", http.StatusInternalServerError)
 			return
 		}
+		data.ProfileID = profileID
+		data.PublicBaseURL = getPublicBaseURL(r)
 		renderTemplate(w, "profile.html", data)
 		return
 	}
 
 	var data ProfileData
-	data.Email = email
+	data.ProfileID = profileID
+	data.Email = maskEmail(email)
 	data.Name = email
 
 	// Look up author name if available
-	_ = db.QueryRow("SELECT name FROM authors WHERE email = $1 LIMIT 1", email).Scan(&data.Name)
+	if err := db.QueryRow("SELECT name FROM authors WHERE email = $1 LIMIT 1", email).Scan(&data.Name); err != nil && err != sql.ErrNoRows {
+		slog.Warn("Failed to look up author name", "error", err)
+	}
 	if data.Name == "" {
-		data.Name = email
+		data.Name = maskEmail(email)
 	}
 
 	// Total commits, lines
-	_ = db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", email).Scan(&data.TotalCommits, &data.LinesAdded, &data.LinesDeleted)
+	if err := db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", email).Scan(&data.TotalCommits, &data.LinesAdded, &data.LinesDeleted); err != nil && err != sql.ErrNoRows {
+		slog.Error("Failed to aggregate profile commit stats", "error", err)
+	}
 
-	// Languages
 	data.Languages = getLanguagesForEmail(email)
-
-	// Facts
 	data.Facts = computeFacts(email)
-
-	// Recognized Libraries & Domains
 	data.Libraries = getContributorLibraries(email)
+	data.Repos = getReposForEmail(email)
 
-	// Repos
-	rows, err := db.Query(`
-		SELECT r.rehash, COUNT(c.rehash) as commit_count, 
-		       COALESCE(SUM(c.num_lines_added), 0) as lines_added, 
-		       COALESCE(SUM(c.num_lines_deleted), 0) as lines_deleted
-		FROM repos r
-		JOIN commits c ON c.repo_rehash = r.rehash
-		WHERE c.author_email = $1
-		GROUP BY r.rehash
-		ORDER BY commit_count DESC`, email)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var repo RepoInfo
-			if err := rows.Scan(&repo.Rehash, &repo.CommitCount, &repo.LinesAdded, &repo.LinesDeleted); err == nil {
-				data.Repos = append(data.Repos, repo)
-			}
+	// Cache the published view for anonymous visitors. PublicBaseURL is
+	// request-derived and deliberately excluded from the cached copy.
+	b, err := json.Marshal(data)
+	if err != nil {
+		slog.Error("Failed to marshal profile data", "profile_id", profileID, "error", err)
+	} else {
+		svgBytes := generateBadgeSVG(data.Name, data.TotalCommits, data.LinesAdded, data.LinesDeleted, data.Languages)
+		if _, err := db.Exec("UPDATE public_profiles SET profile_data_json = $1, badge_svg = $2 WHERE profile_id = $3", string(b), string(svgBytes), profileID); err != nil {
+			slog.Error("Failed to publish profile cache", "profile_id", profileID, "error", err)
 		}
 	}
 
-	b, _ := json.Marshal(data)
-	svgBytes := generateBadgeSVG(data.Name, data.TotalCommits, data.LinesAdded, data.LinesDeleted, data.Languages)
-	db.Exec("UPDATE public_profiles SET profile_data_json = $1, badge_svg = $2 WHERE profile_id = $3", string(b), string(svgBytes), profileID)
-
+	data.PublicBaseURL = getPublicBaseURL(r)
 	renderTemplate(w, "profile.html", data)
 }
 
@@ -1129,13 +1266,37 @@ func handleBadgeSVG(w http.ResponseWriter, r *http.Request) {
 
 // Hall of Fame Data Structures & Handlers (Feature: hall-of-fame)
 
+// ContributorStat is rendered on fully public surfaces (Hall of Fame HTML, SVG
+// and JSON). Email is always the masked display form — raw addresses are never
+// exposed anonymously. ProfileID, when present, links to the contributor's own
+// published profile.
 type ContributorStat struct {
 	Email        string `json:"email"`
+	ProfileID    string `json:"profile_id,omitempty"`
 	Name         string `json:"name"`
 	Commits      int    `json:"commits"`
 	LinesAdded   int    `json:"lines_added,omitempty"`
 	LinesDeleted int    `json:"lines_deleted,omitempty"`
 	IsSourcerer  bool   `json:"is_sourcerer"`
+}
+
+// ProfileURL links to the contributor's published profile, or to an inert
+// anchor when they have never signed in and so have no public profile.
+func (c ContributorStat) ProfileURL() string {
+	if c.ProfileID == "" {
+		return "#"
+	}
+	return "/p/" + c.ProfileID
+}
+
+// sanitize masks the address and falls back to the masked form when the commit
+// carries no author name, so a raw email can never leak through Name either.
+func (c *ContributorStat) sanitize() {
+	masked := maskEmail(c.Email)
+	if c.Name == "" || c.Name == c.Email || strings.Contains(c.Name, "@") {
+		c.Name = masked
+	}
+	c.Email = masked
 }
 
 type HallOfFameData struct {
@@ -1170,13 +1331,15 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 
 	// 2. All-time Top Contributors
 	topRows, err := db.Query(`
-		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
-		       COUNT(*) as commit_count, COALESCE(SUM(c.num_lines_added), 0) as added, 
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name,
+		       COUNT(*) as commit_count, COALESCE(SUM(c.num_lines_added), 0) as added,
 		       COALESCE(SUM(c.num_lines_deleted), 0) as deleted,
-		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		       bool_or(u.email IS NOT NULL) as is_sourcerer,
+		       COALESCE(MAX(p.profile_id), '') as profile_id
 		FROM commits c
 		LEFT JOIN authors a ON a.email = c.author_email
 		LEFT JOIN users u ON u.email = c.author_email
+		LEFT JOIN public_profiles p ON p.email = c.author_email
 		WHERE c.repo_rehash = $1 AND c.author_email IS NOT NULL AND c.author_email != ''
 		GROUP BY c.author_email
 		ORDER BY commit_count DESC
@@ -1185,9 +1348,13 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 		defer topRows.Close()
 		for topRows.Next() {
 			var cs ContributorStat
-			if err := topRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer); err == nil {
+			if err := topRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer, &cs.ProfileID); err == nil {
+				cs.sanitize()
 				data.TopContributors = append(data.TopContributors, cs)
 			}
+		}
+		if err := topRows.Err(); err != nil {
+			slog.Error("Error iterating top contributors", "repo", repoRehash, "error", err)
 		}
 	}
 
@@ -1204,13 +1371,15 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 
 	// 4. Trending Contributors (velocity in recent active window)
 	trendRows, err := db.Query(`
-		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
-		       COUNT(*) as commit_count, COALESCE(SUM(c.num_lines_added), 0) as added, 
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name,
+		       COUNT(*) as commit_count, COALESCE(SUM(c.num_lines_added), 0) as added,
 		       COALESCE(SUM(c.num_lines_deleted), 0) as deleted,
-		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		       bool_or(u.email IS NOT NULL) as is_sourcerer,
+		       COALESCE(MAX(p.profile_id), '') as profile_id
 		FROM commits c
 		LEFT JOIN authors a ON a.email = c.author_email
 		LEFT JOIN users u ON u.email = c.author_email
+		LEFT JOIN public_profiles p ON p.email = c.author_email
 		WHERE c.repo_rehash = $1 AND c.date >= $2 AND c.author_email IS NOT NULL AND c.author_email != ''
 		GROUP BY c.author_email
 		ORDER BY commit_count DESC
@@ -1219,20 +1388,26 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 		defer trendRows.Close()
 		for trendRows.Next() {
 			var cs ContributorStat
-			if err := trendRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer); err == nil {
+			if err := trendRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer, &cs.ProfileID); err == nil {
+				cs.sanitize()
 				data.TrendingContributors = append(data.TrendingContributors, cs)
 			}
+		}
+		if err := trendRows.Err(); err != nil {
+			slog.Error("Error iterating trending contributors", "repo", repoRehash, "error", err)
 		}
 	}
 
 	// 5. New Contributors (initial commit in this repo within cutoff)
 	newRows, err := db.Query(`
-		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name,
 		       COUNT(*) as commit_count,
-		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		       bool_or(u.email IS NOT NULL) as is_sourcerer,
+		       COALESCE(MAX(p.profile_id), '') as profile_id
 		FROM commits c
 		LEFT JOIN authors a ON a.email = c.author_email
 		LEFT JOIN users u ON u.email = c.author_email
+		LEFT JOIN public_profiles p ON p.email = c.author_email
 		WHERE c.repo_rehash = $1 AND c.author_email IS NOT NULL AND c.author_email != ''
 		GROUP BY c.author_email
 		HAVING MIN(c.date) >= $2
@@ -1242,20 +1417,26 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 		defer newRows.Close()
 		for newRows.Next() {
 			var cs ContributorStat
-			if err := newRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.IsSourcerer); err == nil {
+			if err := newRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.IsSourcerer, &cs.ProfileID); err == nil {
+				cs.sanitize()
 				data.NewContributors = append(data.NewContributors, cs)
 			}
+		}
+		if err := newRows.Err(); err != nil {
+			slog.Error("Error iterating new contributors", "repo", repoRehash, "error", err)
 		}
 	}
 	// Fallback if no new contributors within cutoff: fetch latest first-time joiners
 	if len(data.NewContributors) == 0 {
 		fallbackNewRows, err := db.Query(`
-			SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
+			SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name,
 			       COUNT(*) as commit_count,
-			       bool_or(u.email IS NOT NULL) as is_sourcerer
+			       bool_or(u.email IS NOT NULL) as is_sourcerer,
+			       COALESCE(MAX(p.profile_id), '') as profile_id
 			FROM commits c
 			LEFT JOIN authors a ON a.email = c.author_email
 			LEFT JOIN users u ON u.email = c.author_email
+			LEFT JOIN public_profiles p ON p.email = c.author_email
 			WHERE c.repo_rehash = $1 AND c.author_email IS NOT NULL AND c.author_email != ''
 			GROUP BY c.author_email
 			ORDER BY MIN(c.date) DESC
@@ -1264,9 +1445,13 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 			defer fallbackNewRows.Close()
 			for fallbackNewRows.Next() {
 				var cs ContributorStat
-				if err := fallbackNewRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.IsSourcerer); err == nil {
+				if err := fallbackNewRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.IsSourcerer, &cs.ProfileID); err == nil {
+					cs.sanitize()
 					data.NewContributors = append(data.NewContributors, cs)
 				}
+			}
+			if err := fallbackNewRows.Err(); err != nil {
+				slog.Error("Error iterating fallback new contributors", "repo", repoRehash, "error", err)
 			}
 		}
 	}
@@ -1282,35 +1467,46 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 		LIMIT 5`, repoRehash)
 	if err == nil {
 		defer langRows.Close()
-		totalLines := 0
 		for langRows.Next() {
 			var s LangStat
 			if err := langRows.Scan(&s.Tech, &s.Lines); err == nil && s.Tech != "" {
 				data.Languages = append(data.Languages, s)
-				totalLines += s.Lines
 			}
 		}
-		if totalLines > 0 {
-			for i := range data.Languages {
-				data.Languages[i].Percentage = int((float64(data.Languages[i].Lines) / float64(totalLines)) * 100.0)
-				if data.Languages[i].Percentage == 0 && data.Languages[i].Lines > 0 {
-					data.Languages[i].Percentage = 1
-				}
-			}
+		if err := langRows.Err(); err != nil {
+			slog.Error("Error iterating repo languages", "repo", repoRehash, "error", err)
 		}
+		data.Languages = withPercentages(data.Languages)
 	}
 
 	return data
 }
 
+// getPublicBaseURL returns an absolute origin ("https://example.com") suitable
+// for embedding in README snippets and SVG footers. PUBLIC_BASE_URL wins; the
+// proxy-forwarded scheme and host are the fallback.
 func getPublicBaseURL(r *http.Request) string {
 	if envURL := os.Getenv("PUBLIC_BASE_URL"); envURL != "" {
-		return envURL
+		return strings.TrimSuffix(envURL, "/")
 	}
 	if r != nil && r.Host != "" {
-		return r.Host
+		scheme := "https"
+		if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+			scheme = proto
+		} else if r.TLS == nil {
+			scheme = "http"
+		}
+		return scheme + "://" + r.Host
 	}
-	return "localhost:8080"
+	return "http://localhost:8080"
+}
+
+// displayHost strips the scheme from a base URL for compact SVG footer text.
+func displayHost(baseURL string) string {
+	if i := strings.Index(baseURL, "://"); i >= 0 {
+		return baseURL[i+3:]
+	}
+	return baseURL
 }
 
 func generateHallOfFameSVG(data HallOfFameData) []byte {
@@ -1458,7 +1654,7 @@ func generateHallOfFameSVG(data HallOfFameData) []byte {
 		topListSVG, trendingListSVG, newListSVG,
 		langBars.String(),
 		langLegend.String(),
-		template.HTMLEscapeString(data.PublicBaseURL),
+		template.HTMLEscapeString(displayHost(data.PublicBaseURL)),
 		template.HTMLEscapeString(repoDisplay),
 	)
 
@@ -1591,6 +1787,9 @@ func getLibrariesCatalog() []LibraryCategoryGroup {
 			groupMap[tm.Category] = append(groupMap[tm.Category], tm)
 		}
 	}
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating libraries catalog", "error", err)
+	}
 
 	var result []LibraryCategoryGroup
 	for _, cat := range categoryOrder {
@@ -1625,15 +1824,17 @@ func getLibraryDetail(techID string) (*TechnologyMeta, []ContributorStat) {
 	var contributors []ContributorStat
 	strippedID := strings.TrimPrefix(tm.ID, tm.Lang+".")
 	cRows, err := db.Query(`
-		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
-		       COUNT(DISTINCT c.rehash) as commit_count, 
-		       COALESCE(SUM(s.num_lines_added), 0) as added, 
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name,
+		       COUNT(DISTINCT c.rehash) as commit_count,
+		       COALESCE(SUM(s.num_lines_added), 0) as added,
 		       COALESCE(SUM(s.num_lines_deleted), 0) as deleted,
-		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		       bool_or(u.email IS NOT NULL) as is_sourcerer,
+		       COALESCE(MAX(p.profile_id), '') as profile_id
 		FROM commit_stats s
 		JOIN commits c ON c.rehash = s.commit_rehash
 		LEFT JOIN authors a ON a.email = c.author_email
 		LEFT JOIN users u ON u.email = c.author_email
+		LEFT JOIN public_profiles p ON p.email = c.author_email
 		WHERE s.tech = $1 OR s.tech = $2 OR s.tech = $3
 		GROUP BY c.author_email
 		ORDER BY added DESC
@@ -1642,9 +1843,13 @@ func getLibraryDetail(techID string) (*TechnologyMeta, []ContributorStat) {
 		defer cRows.Close()
 		for cRows.Next() {
 			var cs ContributorStat
-			if err := cRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer); err == nil {
+			if err := cRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer, &cs.ProfileID); err == nil {
+				cs.sanitize()
 				contributors = append(contributors, cs)
 			}
+		}
+		if err := cRows.Err(); err != nil {
+			slog.Error("Error iterating library contributors", "tech", techID, "error", err)
 		}
 	}
 
@@ -1656,38 +1861,19 @@ func getContributorLibraries(email string) []TechnologyMeta {
 		return nil
 	}
 
-	var rows *sql.Rows
-	var err error
-
-	if email != "" {
-		rows, err = db.Query(`
-			SELECT COALESCE(t.id, s.tech) as tech_id, 
-			       COALESCE(t.name, s.tech) as tech_name, 
-			       COALESCE(t.lang, 'framework') as tech_lang, 
-			       COALESCE(t.category, 'Recognized Library') as tech_cat, 
-			       COALESCE(SUM(s.num_lines_added), 0) as lines
-			FROM commit_stats s
-			JOIN commits c ON c.rehash = s.commit_rehash
-			LEFT JOIN technologies t ON (t.id = s.tech OR t.name ILIKE s.tech OR t.id = 'js.' || s.tech OR t.id = 'py.' || s.tech OR t.id = 'go.' || s.tech)
-			WHERE c.author_email = $1 AND (s.type = 2 OR t.id IS NOT NULL)
-			GROUP BY tech_id, tech_name, tech_lang, tech_cat
-			ORDER BY lines DESC
-			LIMIT 12`, email)
-	} else {
-		rows, err = db.Query(`
-			SELECT COALESCE(t.id, s.tech) as tech_id, 
-			       COALESCE(t.name, s.tech) as tech_name, 
-			       COALESCE(t.lang, 'framework') as tech_lang, 
-			       COALESCE(t.category, 'Recognized Library') as tech_cat, 
-			       COALESCE(SUM(s.num_lines_added), 0) as lines
-			FROM commit_stats s
-			JOIN commits c ON c.rehash = s.commit_rehash
-			LEFT JOIN technologies t ON (t.id = s.tech OR t.name ILIKE s.tech OR t.id = 'js.' || s.tech OR t.id = 'py.' || s.tech OR t.id = 'go.' || s.tech)
-			WHERE s.type = 2 OR t.id IS NOT NULL
-			GROUP BY tech_id, tech_name, tech_lang, tech_cat
-			ORDER BY lines DESC
-			LIMIT 12`)
-	}
+	rows, err := db.Query(`
+		SELECT COALESCE(t.id, s.tech) as tech_id,
+		       COALESCE(t.name, s.tech) as tech_name,
+		       COALESCE(t.lang, 'framework') as tech_lang,
+		       COALESCE(t.category, 'Recognized Library') as tech_cat,
+		       COALESCE(SUM(s.num_lines_added), 0) as lines
+		FROM commit_stats s
+		JOIN commits c ON c.rehash = s.commit_rehash
+		LEFT JOIN technologies t ON (t.id = s.tech OR t.name ILIKE s.tech OR t.id = 'js.' || s.tech OR t.id = 'py.' || s.tech OR t.id = 'go.' || s.tech)
+		WHERE c.author_email = $1 AND (s.type = 2 OR t.id IS NOT NULL)
+		GROUP BY tech_id, tech_name, tech_lang, tech_cat
+		ORDER BY lines DESC
+		LIMIT 12`, email)
 
 	if err != nil {
 		slog.Error("Error querying contributor libraries", "email", email, "error", err)
@@ -1703,6 +1889,9 @@ func getContributorLibraries(email string) []TechnologyMeta {
 				result = append(result, tm)
 			}
 		}
+	}
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating contributor libraries", "email", email, "error", err)
 	}
 	return result
 }
@@ -1764,8 +1953,3 @@ func handleDashboardLibraries(w http.ResponseWriter, r *http.Request) {
 	libs := getContributorLibraries(email)
 	renderTemplate(w, "libraries_partial.html", libs)
 }
-
-
-
-
-

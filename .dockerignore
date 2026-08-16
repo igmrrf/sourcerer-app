@@ -1,0 +1,12 @@
+# The build context is the repository root, but the backend image only needs
+# backend/ and the prebuilt extractor jar. cli/src alone is ~600k lines of
+# language sample fixtures.
+*
+!backend/
+!cli/build/libs/sourcerer-app.jar
+
+backend/sourcerer-backend
+backend/backend
+**/.git
+**/.DS_Store
+**/*.log
