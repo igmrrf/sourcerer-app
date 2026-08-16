@@ -35,7 +35,7 @@ buildConfig {
     buildConfigField 'String', 'API_BASE_PATH', apiBasePath
 
     // Common.
-    buildConfigField 'String', 'PROFILE_URL', 'https://sourcerer.io/'
+    buildConfigField 'String', 'PROFILE_URL', '""'
 
     // App version.
     buildConfigField 'int', 'VERSION_CODE', '30'
@@ -46,13 +46,13 @@ buildConfig {
     buildConfigField 'String', 'LOG_LEVEL', project.hasProperty('log') ? log : 'info'
     buildConfigField 'boolean', 'SILENT_USER_OUTPUT', project.hasProperty('silent') ? silent : 'false'
     buildConfigField 'boolean', 'SENTRY_ENABLED', project.hasProperty('sentry') ? sentry : 'false'
-    buildConfigField 'String', 'SENTRY_DSN', System.getenv('SENTRY_DSN') ?: ''
+    buildConfigField 'String', 'SENTRY_DSN', System.getenv('SENTRY_DSN') ?: '""'
     buildConfigField 'boolean', 'PRINT_STACK_TRACE', 'false'
 
     // Google Analytics.
     buildConfigField 'String', 'GA_BASE_PATH', 'https://www.google-analytics.com'
-    buildConfigField 'String', 'GA_TRACKING_ID', 'UA-107129190-2'
-    buildConfigField 'boolean', 'IS_GA_ENABLED', 'true'
+    buildConfigField 'String', 'GA_TRACKING_ID', '""'
+    buildConfigField 'boolean', 'IS_GA_ENABLED', 'false'
 
     // Models storage path.
     buildConfigField 'String', 'LIBRARY_MODELS_URL', 'https://storage.googleapis.com/sourcerer-app/library-models/v2/'

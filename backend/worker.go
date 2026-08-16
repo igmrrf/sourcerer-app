@@ -132,11 +132,17 @@ func processJob(job IngestionJob) {
 		jarPath = filepath.Join("..", "cli", "build", "libs", "sourcerer-app.jar")
 	}
 
+	internalToken := os.Getenv("API_INTERNAL_TOKEN")
+	if internalToken == "" {
+		internalToken = "dummy_token"
+	}
+
 	slog.Info("Running headless ingestion CLI", "path", tmpDir, "user_email", job.UserEmail)
 	cmdJava := exec.Command("java", "-jar", jarPath,
 		"--headless",
 		"--path", tmpDir,
-		"--username", job.UserEmail)
+		"--username", job.UserEmail,
+		"--password", internalToken)
 
 	cmdJava.Stdout = os.Stdout
 	cmdJava.Stderr = os.Stderr
@@ -147,17 +153,23 @@ func processJob(job IngestionJob) {
 
 	// Step 3: Record sync completion in PostgreSQL
 	if db != nil && headRehash != "" {
-		_, err := db.Exec(`
-			UPDATE repos 
-			SET last_commit_rehash = $1, 
-			    last_synced_at = $2, 
-			    github_pushed_at = COALESCE(NULLIF($3, ''), github_pushed_at),
-			    repo_url = COALESCE(NULLIF($4, ''), repo_url),
-			    repo_name = COALESCE(NULLIF($5, ''), repo_name)
-			WHERE repo_url = $4 OR repo_name = $5`,
-			headRehash, time.Now().Unix(), job.GitHubPushedAt, job.RepoURL, job.RepoName)
-		if err != nil {
-			slog.Warn("Failed to update repo sync metadata", "repo_url", job.RepoURL, "error", err)
+		var repoRehash string
+		err := db.QueryRow("SELECT repo_rehash FROM commits WHERE rehash = $1 LIMIT 1", headRehash).Scan(&repoRehash)
+		if err == nil && repoRehash != "" {
+			_, err = db.Exec(`
+				UPDATE repos 
+				SET last_commit_rehash = $1, 
+				    last_synced_at = $2, 
+				    github_pushed_at = COALESCE(NULLIF($3, ''), github_pushed_at),
+				    repo_url = COALESCE(NULLIF($4, ''), repo_url),
+				    repo_name = COALESCE(NULLIF($5, ''), repo_name)
+				WHERE rehash = $6`,
+				headRehash, time.Now().Unix(), job.GitHubPushedAt, job.RepoURL, job.RepoName, repoRehash)
+			if err != nil {
+				slog.Warn("Failed to update repo sync metadata", "repo_url", job.RepoURL, "error", err)
+			}
+		} else {
+			slog.Warn("Could not find repo_rehash for commit", "head_rehash", headRehash, "repo_url", job.RepoURL, "error", err)
 		}
 	}
 

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -74,7 +75,7 @@ func getSessionEmail(r *http.Request) string {
 var oauthConfig = &oauth2.Config{
 	ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
 	ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
-	Scopes:       []string{"repo", "user:email"},
+	Scopes:       []string{"public_repo", "user:email"},
 	Endpoint:     githuboauth.Endpoint,
 }
 
@@ -99,9 +100,6 @@ var templateFuncs = template.FuncMap{
 func isDevMode() bool {
 	env := strings.ToLower(os.Getenv("ENV"))
 	if env == "development" || env == "dev" {
-		return true
-	}
-	if _, err := os.Stat("templates/index.html"); err == nil && env != "production" {
 		return true
 	}
 	return false
@@ -144,12 +142,21 @@ func main() {
 	if secretStr != "" {
 		sessionSecret = []byte(secretStr)
 	} else {
+		if !isDevMode() {
+			slog.Error("SESSION_SECRET must be set in production mode")
+			os.Exit(1)
+		}
 		sessionSecret = make([]byte, 32)
 		if _, err := rand.Read(sessionSecret); err != nil {
 			slog.Error("Failed to generate session secret", "error", err)
 			os.Exit(1)
 		}
 		slog.Warn("SESSION_SECRET not set. Generated a random one. Sessions will not persist across restarts.")
+	}
+
+	if !isDevMode() && os.Getenv("API_INTERNAL_TOKEN") == "" {
+		slog.Error("API_INTERNAL_TOKEN must be set in production mode")
+		os.Exit(1)
 	}
 
 	// Parse embedded production templates
@@ -202,6 +209,15 @@ func main() {
 
 	api := &API{db: db}
 
+	jarPath := "/root/sourcerer-app.jar"
+	if _, err := os.Stat(jarPath); os.IsNotExist(err) {
+		jarPath = filepath.Join("..", "cli", "build", "libs", "sourcerer-app.jar")
+	}
+	if stat, err := os.Stat(jarPath); err != nil || stat.IsDir() {
+		slog.Error("sourcerer-app.jar not found or is a directory. Make sure to build the CLI.", "path", jarPath)
+		os.Exit(1)
+	}
+
 	// Start background worker
 	ctxWorker, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
@@ -218,10 +234,9 @@ func main() {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 			if origin != "" {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Origin", "*")
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
@@ -252,34 +267,33 @@ func main() {
 
 	// HTMX Dashboard Routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		sessionEmail := getSessionEmail(r)
+		if sessionEmail == "" {
+			http.Redirect(w, r, "/auth/github/login", http.StatusFound)
+			return
+		}
+
 		type Author struct {
 			Email string
 			Name  string
 		}
 		type UserInfo struct {
-			Name  string
-			Email string
+			Name            string
+			Email           string
+			PublicProfileID string
 		}
 
-		sessionEmail := getSessionEmail(r)
-		var user *UserInfo
-		if sessionEmail != "" {
-			user = &UserInfo{Name: sessionEmail, Email: sessionEmail}
+		var profileID string
+		err := db.QueryRow("SELECT profile_id FROM public_profiles WHERE email = $1", sessionEmail).Scan(&profileID)
+		if err == sql.ErrNoRows {
+			b := make([]byte, 16)
+			rand.Read(b)
+			profileID = hex.EncodeToString(b)
+			db.Exec("INSERT INTO public_profiles (email, profile_id) VALUES ($1, $2)", sessionEmail, profileID)
 		}
 
-		var authors []Author
-		rows, err := db.Query("SELECT DISTINCT email, name FROM authors WHERE email IS NOT NULL AND email != ''")
-		if err != nil {
-			slog.Error("Error querying authors", "error", err)
-		} else {
-			defer rows.Close()
-			for rows.Next() {
-				var a Author
-				if err := rows.Scan(&a.Email, &a.Name); err == nil {
-					authors = append(authors, a)
-				}
-			}
-		}
+		user := &UserInfo{Name: sessionEmail, Email: sessionEmail, PublicProfileID: profileID}
+		authors := []Author{{Email: sessionEmail, Name: sessionEmail}}
 
 		data := struct {
 			Authors []Author
@@ -292,7 +306,11 @@ func main() {
 	})
 
 	r.Get("/dashboard/stats", func(w http.ResponseWriter, r *http.Request) {
-		email := r.URL.Query().Get("email")
+		email := getSessionEmail(r)
+		if email == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		var totalCommits int
 		var totalLinesAdded int
 		var totalLinesDeleted int
@@ -320,7 +338,11 @@ func main() {
 	})
 
 	r.Get("/dashboard/languages", func(w http.ResponseWriter, r *http.Request) {
-		email := r.URL.Query().Get("email")
+		email := getSessionEmail(r)
+		if email == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		var rows *sql.Rows
 		var err error
 
@@ -365,7 +387,11 @@ func main() {
 	})
 
 	r.Get("/dashboard/repos", func(w http.ResponseWriter, r *http.Request) {
-		email := r.URL.Query().Get("email")
+		email := getSessionEmail(r)
+		if email == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		type RepoItem struct {
 			Rehash       string
 			CommitCount  int
@@ -485,6 +511,7 @@ func handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
 		Name:     "oauth_state",
 		Value:    state,
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   600,
 		Path:     "/",
@@ -552,6 +579,7 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		Value:    signCookie(email),
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   86400,
 	})
@@ -629,6 +657,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
@@ -890,57 +919,85 @@ func computeFacts(email string) FactsData {
 }
 
 func handleDashboardFacts(w http.ResponseWriter, r *http.Request) {
-	email := r.URL.Query().Get("email")
+	email := getSessionEmail(r)
+	if email == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	facts := computeFacts(email)
 	renderTemplate(w, "facts.html", facts)
 }
 
+type RepoInfo struct {
+	Rehash       string
+	CommitCount  int
+	LinesAdded   int
+	LinesDeleted int
+}
+
+type ProfileData struct {
+	Name         string
+	Email        string
+	TotalCommits int
+	LinesAdded   int
+	LinesDeleted int
+	Languages    []LangStat
+	Facts        FactsData
+	Libraries    []TechnologyMeta
+	Repos        []RepoInfo
+}
+
 func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
-	identifier := chi.URLParam(r, "email")
-	if identifier == "" {
-		identifier = chi.URLParam(r, "username")
+	profileID := chi.URLParam(r, "email")
+	if profileID == "" {
+		profileID = chi.URLParam(r, "username")
 	}
 
-	type RepoInfo struct {
-		Rehash       string
-		CommitCount  int
-		LinesAdded   int
-		LinesDeleted int
+	var email string
+	var cachedJSON sql.NullString
+	err := db.QueryRow("SELECT email, profile_data_json FROM public_profiles WHERE profile_id = $1", profileID).Scan(&email, &cachedJSON)
+	if err != nil {
+		http.Error(w, "Profile not found", http.StatusNotFound)
+		return
 	}
 
-	type ProfileData struct {
-		Name         string
-		Email        string
-		TotalCommits int
-		LinesAdded   int
-		LinesDeleted int
-		Languages    []LangStat
-		Facts        FactsData
-		Libraries    []TechnologyMeta
-		Repos        []RepoInfo
+	sessionEmail := getSessionEmail(r)
+	if sessionEmail != email {
+		if !cachedJSON.Valid || cachedJSON.String == "" {
+			http.Error(w, "Profile not published yet", http.StatusNotFound)
+			return
+		}
+		var data ProfileData
+		if err := json.Unmarshal([]byte(cachedJSON.String), &data); err != nil {
+			slog.Error("Failed to unmarshal profile data", "error", err)
+			http.Error(w, "Error parsing profile", http.StatusInternalServerError)
+			return
+		}
+		renderTemplate(w, "profile.html", data)
+		return
 	}
 
 	var data ProfileData
-	data.Email = identifier
-	data.Name = identifier
+	data.Email = email
+	data.Name = email
 
 	// Look up author name if available
-	_ = db.QueryRow("SELECT name FROM authors WHERE email = $1 LIMIT 1", identifier).Scan(&data.Name)
+	_ = db.QueryRow("SELECT name FROM authors WHERE email = $1 LIMIT 1", email).Scan(&data.Name)
 	if data.Name == "" {
-		data.Name = identifier
+		data.Name = email
 	}
 
 	// Total commits, lines
-	_ = db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", identifier).Scan(&data.TotalCommits, &data.LinesAdded, &data.LinesDeleted)
+	_ = db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", email).Scan(&data.TotalCommits, &data.LinesAdded, &data.LinesDeleted)
 
 	// Languages
-	data.Languages = getLanguagesForEmail(identifier)
+	data.Languages = getLanguagesForEmail(email)
 
 	// Facts
-	data.Facts = computeFacts(identifier)
+	data.Facts = computeFacts(email)
 
 	// Recognized Libraries & Domains
-	data.Libraries = getContributorLibraries(identifier)
+	data.Libraries = getContributorLibraries(email)
 
 	// Repos
 	rows, err := db.Query(`
@@ -951,7 +1008,7 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 		JOIN commits c ON c.repo_rehash = r.rehash
 		WHERE c.author_email = $1
 		GROUP BY r.rehash
-		ORDER BY commit_count DESC`, identifier)
+		ORDER BY commit_count DESC`, email)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -961,6 +1018,10 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	b, _ := json.Marshal(data)
+	svgBytes := generateBadgeSVG(data.Name, data.TotalCommits, data.LinesAdded, data.LinesDeleted, data.Languages)
+	db.Exec("UPDATE public_profiles SET profile_data_json = $1, badge_svg = $2 WHERE profile_id = $3", string(b), string(svgBytes), profileID)
 
 	renderTemplate(w, "profile.html", data)
 }
@@ -1050,26 +1111,20 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 }
 
 func handleBadgeSVG(w http.ResponseWriter, r *http.Request) {
-	identifier := chi.URLParam(r, "identifier")
-	identifier = strings.TrimSuffix(identifier, ".svg")
+	profileID := chi.URLParam(r, "identifier")
+	profileID = strings.TrimSuffix(profileID, ".svg")
 
-	var name string
-	_ = db.QueryRow("SELECT name FROM authors WHERE email = $1 LIMIT 1", identifier).Scan(&name)
-	if name == "" {
-		name = identifier
+	var svg sql.NullString
+	err := db.QueryRow("SELECT badge_svg FROM public_profiles WHERE profile_id = $1", profileID).Scan(&svg)
+	if err != nil || !svg.Valid || svg.String == "" {
+		http.Error(w, "Badge not found", http.StatusNotFound)
+		return
 	}
-
-	var totalCommits, linesAdded, linesDeleted int
-	_ = db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", identifier).Scan(&totalCommits, &linesAdded, &linesDeleted)
-
-	languages := getLanguagesForEmail(identifier)
-
-	svgBytes := generateBadgeSVG(name, totalCommits, linesAdded, linesDeleted, languages)
 
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.Header().Set("Cache-Control", "public, max-age=1800")
 	w.WriteHeader(http.StatusOK)
-	w.Write(svgBytes)
+	w.Write([]byte(svg.String))
 }
 
 // Hall of Fame Data Structures & Handlers (Feature: hall-of-fame)
@@ -1094,6 +1149,7 @@ type HallOfFameData struct {
 	TrendingContributors []ContributorStat `json:"trending"`
 	NewContributors      []ContributorStat `json:"new"`
 	Languages            []LangStat        `json:"languages"`
+	PublicBaseURL        string            `json:"public_base_url"`
 }
 
 func getHallOfFameData(repoRehash string) HallOfFameData {
@@ -1247,6 +1303,16 @@ func getHallOfFameData(repoRehash string) HallOfFameData {
 	return data
 }
 
+func getPublicBaseURL(r *http.Request) string {
+	if envURL := os.Getenv("PUBLIC_BASE_URL"); envURL != "" {
+		return envURL
+	}
+	if r != nil && r.Host != "" {
+		return r.Host
+	}
+	return "localhost:8080"
+}
+
 func generateHallOfFameSVG(data HallOfFameData) []byte {
 	palette := []string{"#8b5cf6", "#a855f7", "#06b6d4", "#10b981", "#f59e0b"}
 
@@ -1295,8 +1361,9 @@ func generateHallOfFameSVG(data HallOfFameData) []byte {
 			}
 
 			displayName := c.Name
-			if len(displayName) > 16 {
-				displayName = displayName[:14] + "…"
+			runes := []rune(displayName)
+			if len(runes) > 16 {
+				displayName = string(runes[:14]) + "…"
 			}
 
 			haloAttr := ""
@@ -1332,8 +1399,9 @@ func generateHallOfFameSVG(data HallOfFameData) []byte {
 	newListSVG := renderTierList(data.NewContributors, 565, "#10b981", "new")
 
 	repoDisplay := data.RepoRehash
-	if len(repoDisplay) > 28 {
-		repoDisplay = repoDisplay[:26] + "…"
+	repoRunes := []rune(repoDisplay)
+	if len(repoRunes) > 28 {
+		repoDisplay = string(repoRunes[:26]) + "…"
 	}
 
 	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="840" height="350" viewBox="0 0 840 350" fill="none">
@@ -1383,13 +1451,14 @@ func generateHallOfFameSVG(data HallOfFameData) []byte {
 	%s
 	
 	<!-- Footer Branding -->
-	<text x="815" y="329" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10" font-weight="600" text-anchor="end">sourcerer.io/r/%s</text>
+	<text x="815" y="329" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10" font-weight="600" text-anchor="end">%s/r/%s</text>
 </svg>`,
 		template.HTMLEscapeString(repoDisplay),
 		data.TotalCommits, data.TotalContributors,
 		topListSVG, trendingListSVG, newListSVG,
 		langBars.String(),
 		langLegend.String(),
+		template.HTMLEscapeString(data.PublicBaseURL),
 		template.HTMLEscapeString(repoDisplay),
 	)
 
@@ -1401,6 +1470,7 @@ func handleHallOfFameSVG(w http.ResponseWriter, r *http.Request) {
 	repoRehash = strings.TrimSuffix(repoRehash, ".svg")
 
 	data := getHallOfFameData(repoRehash)
+	data.PublicBaseURL = getPublicBaseURL(r)
 	svgBytes := generateHallOfFameSVG(data)
 
 	w.Header().Set("Content-Type", "image/svg+xml")
@@ -1414,6 +1484,7 @@ func handleHallOfFameHTML(w http.ResponseWriter, r *http.Request) {
 	repoRehash = strings.TrimSuffix(repoRehash, ".svg")
 
 	data := getHallOfFameData(repoRehash)
+	data.PublicBaseURL = getPublicBaseURL(r)
 	renderTemplate(w, "repo.html", data)
 }
 
@@ -1422,6 +1493,7 @@ func handleHallOfFameAPI(w http.ResponseWriter, r *http.Request) {
 	repoRehash = strings.TrimSuffix(repoRehash, ".svg")
 
 	data := getHallOfFameData(repoRehash)
+	data.PublicBaseURL = getPublicBaseURL(r)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -1684,7 +1756,11 @@ func handleLibraryDetailAPI(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDashboardLibraries(w http.ResponseWriter, r *http.Request) {
-	email := r.URL.Query().Get("email")
+	email := getSessionEmail(r)
+	if email == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	libs := getContributorLibraries(email)
 	renderTemplate(w, "libraries_partial.html", libs)
 }

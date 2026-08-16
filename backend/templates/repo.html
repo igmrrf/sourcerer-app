@@ -743,7 +743,7 @@
                     <div>
                         <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary);">Markdown Snippet</span>
                         <div class="code-box">
-                            <pre id="md-code">[![Sourcerer Hall of Fame](https://sourcerer.io/hall-of-fame/{{.RepoRehash}}.svg)](https://sourcerer.io/r/{{.RepoRehash}})</pre>
+                            <pre id="md-code">[![Sourcerer Hall of Fame](https://{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg)](https://{{.PublicBaseURL}}/r/{{.RepoRehash}})</pre>
                             <button class="copy-btn" onclick="copySnippet('md-code', 'Markdown')">Copy</button>
                         </div>
                     </div>
@@ -751,7 +751,7 @@
                     <div style="margin-top: 1.25rem;">
                         <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary);">HTML Snippet</span>
                         <div class="code-box">
-                            <pre id="html-code">&lt;a href="https://sourcerer.io/r/{{.RepoRehash}}"&gt;&lt;img src="https://sourcerer.io/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer Hall of Fame" /&gt;&lt;/a&gt;</pre>
+                            <pre id="html-code">&lt;a href="https://{{.PublicBaseURL}}/r/{{.RepoRehash}}"&gt;&lt;img src="https://{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer Hall of Fame" /&gt;&lt;/a&gt;</pre>
                             <button class="copy-btn" onclick="copySnippet('html-code', 'HTML')">Copy</button>
                         </div>
                     </div>

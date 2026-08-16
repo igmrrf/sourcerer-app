@@ -3,3 +3,7 @@
 *.log
 backend/sourcerer-backend
 backend/backend
+nginx/ssl/
+session.txt
+api.txt
+test_auth.sh

@@ -133,12 +133,13 @@ class ClassifierManager {
                     }
                 } else {
                     Logger.warn { "Classifier $libId unavailable from cloud (HTTP ${response.statusLine.statusCode})" }
+                    if (file.exists()) file.delete()
                     return false
                 }
             }
         } catch (e: Exception) {
             Logger.error(e, "Failed to download $libId classifier")
-            return false
+            if (file.exists()) file.delete()
         }
         return false
     }

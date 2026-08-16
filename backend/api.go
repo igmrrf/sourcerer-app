@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"backend/app"
@@ -28,12 +27,6 @@ func apiAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Allow internal loopback requests from worker inside container
-		host := r.RemoteAddr
-		if strings.HasPrefix(host, "127.0.0.1:") || strings.HasPrefix(host, "[::1]:") || strings.HasPrefix(host, "localhost:") || host == "@" {
-			next.ServeHTTP(w, r)
-			return
-		}
 
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "Bearer "+token {
@@ -82,6 +75,13 @@ func (a *API) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	if token == "" {
 		token = "dummy_token"
 	}
+
+	_, password, ok := r.BasicAuth()
+	if !ok || password != token {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "Token",
 		Value:    token,

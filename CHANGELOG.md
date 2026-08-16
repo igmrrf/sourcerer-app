@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [1.1.1] - 2026-08-16
+
+### Security Fixes
+- **Unauthenticated API Access (SEC-01)**: Enforced authentication on `POST /api/repos` and user profile endpoints to prevent unauthorized creation and modification of repositories and profiles.
+- **Server-Side Request Forgery & Re-bind (SEC-02, SEC-03)**: Validated URLs and restricted outbound requests to prevent SSRF and DNS rebinding attacks during repository ingestion.
+- **Cache Poisoning & Port Exposure (SEC-04, SEC-05, OPS-13)**: Standardized Nginx configurations and removed duplicate published ports in `docker-compose.yml`. Configured SSL readiness.
+
+### Operational & Bug Fixes
+- **Missing Repository Update Statement (BUG-01)**: Fixed the broken SQL `UPDATE` statement for the `repos` table in `api.go`, resolving the `sql: expected 4 arguments, got 3` error that crashed ingestion.
+- **CLI Build Fix (OPS-09)**: Modernized `cli/build.gradle` by removing defunct repositories (jcenter, bintray) and updating the build wrapper to ensure reproducible builds.
+- **Unwanted Analytics Telemetry (OPS-10)**: Disabled default Google Analytics (`IS_GA_ENABLED=false`) in the CLI worker to prevent data leaks.
+- **Graceful Shutdown & Queue Handlers (OPS-12)**: Implemented `WaitGroup` in `main.go` and `worker.go` to properly drain in-flight ingestion jobs on shutdown without orphaned processes.
+- **Test Suite Updates (OPS-11)**: Added missing integration tests, filling the void in automated coverage.
+- **Documentation Drift (OPS-14)**: Synchronized `project_docs.md` schemas, endpoints, and CLI instructions with reality.
+- **SVG Route Performance**: Re-enabled cache-control headers on `/{repo}.svg` and `/r/{repo}.svg` endpoints to protect against CPU spikes on high-traffic badge embeds.
+
 ## [1.1.0] - 2026-08-16
 
 ### Added

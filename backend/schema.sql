@@ -14,6 +14,19 @@ CREATE TABLE IF NOT EXISTS repos (
     github_pushed_at TEXT
 );
 
+ALTER TABLE repos ADD COLUMN IF NOT EXISTS repo_url TEXT;
+ALTER TABLE repos ADD COLUMN IF NOT EXISTS repo_name TEXT;
+ALTER TABLE repos ADD COLUMN IF NOT EXISTS last_commit_rehash TEXT;
+ALTER TABLE repos ADD COLUMN IF NOT EXISTS last_synced_at BIGINT;
+ALTER TABLE repos ADD COLUMN IF NOT EXISTS github_pushed_at TEXT;
+
+CREATE TABLE IF NOT EXISTS public_profiles (
+    email TEXT PRIMARY KEY,
+    profile_id TEXT UNIQUE,
+    profile_data_json TEXT,
+    badge_svg TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_repos_repo_url ON repos(repo_url);
 CREATE INDEX IF NOT EXISTS idx_repos_repo_name ON repos(repo_name);
 CREATE INDEX IF NOT EXISTS idx_repos_last_commit ON repos(last_commit_rehash);
