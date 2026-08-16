@@ -563,7 +563,7 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		var allRepos []*github.Repository
 		opt := &github.RepositoryListByAuthenticatedUserOptions{
 			Type:        "owner",
-			ListOptions: github.ListOptions{PerPage: 100, Page: 1},
+			ListOptions: github.ListOptions{PerPage: 10, Page: 1},
 		}
 
 		for {
