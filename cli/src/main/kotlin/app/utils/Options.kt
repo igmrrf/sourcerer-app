@@ -35,4 +35,14 @@ class Options {
                description = "Remove Sourcerer App",
                order = 4)
     var uninstall: Boolean = false
+
+    @Parameter(names = arrayOf("--headless"),
+               description = "Run headlessly on a specific path without UI",
+               order = 5)
+    var headless: Boolean = false
+
+    @Parameter(names = arrayOf("--path"),
+               description = "Path to the repository for headless run",
+               order = 6)
+    var path: String = ""
 }

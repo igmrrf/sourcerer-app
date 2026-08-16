@@ -1,0 +1,18 @@
+<h2>Overall Stats</h2>
+{{if eq .TotalCommits 0}}
+    <p class="empty-state">No commits ingested yet.</p>
+{{else}}
+    <p class="stat-value">{{.TotalCommits}}</p>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Total Commits</p>
+    
+    <div style="display: flex; gap: 2rem;">
+        <div>
+            <span style="display: block; font-size: 1.25rem; font-weight: 600; color: #16a34a;">+{{.LinesAdded}}</span>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Lines Added</span>
+        </div>
+        <div>
+            <span style="display: block; font-size: 1.25rem; font-weight: 600; color: #dc2626;">-{{.LinesDeleted}}</span>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Lines Deleted</span>
+        </div>
+    </div>
+{{end}}

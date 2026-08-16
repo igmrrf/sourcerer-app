@@ -1,0 +1,3 @@
+sourcerer-backend
+*.exe
+.env

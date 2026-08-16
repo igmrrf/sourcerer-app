@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sourcerer}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Mount the schema file to initialize the DB automatically
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=host=db user=${POSTGRES_USER:-postgres} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB:-sourcerer} sslmode=disable
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - API_INTERNAL_TOKEN=${API_INTERNAL_TOKEN}
+    volumes:
+      - ./cli/build/libs/sourcerer-app.jar:/root/sourcerer-app.jar
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

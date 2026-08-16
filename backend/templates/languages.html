@@ -1,0 +1,13 @@
+<h2>Top Languages</h2>
+{{if not .}}
+    <p class="empty-state">No language data available.</p>
+{{else}}
+    <ul class="lang-list">
+        {{range .}}
+        <li>
+            <span style="font-weight: 500;">{{.Tech}}</span>
+            <span style="color: var(--text-muted);">{{.Lines}} lines</span>
+        </li>
+        {{end}}
+    </ul>
+{{end}}

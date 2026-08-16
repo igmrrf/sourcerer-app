@@ -66,6 +66,8 @@ class Main(argv: Array<String>) {
 
             if (options.help) {
                 showHelp(jc)
+            } else if (options.headless) {
+                doHeadless(options)
             } else if (options.setup) {
                 doSetup()
             } else when (jc.parsedCommand) {
@@ -160,6 +162,45 @@ class Main(argv: Array<String>) {
             }
         }
         startUi()
+    }
+
+    private fun doHeadless(options: Options) {
+        val pathStr = options.path
+        if (pathStr.isEmpty()) {
+            Logger.error("Path is required for headless mode")
+            return
+        }
+        val path = pathStr.toPath()
+        if (RepoHelper.isValidRepo(path)) {
+            val localRepo = LocalRepo(path.toString())
+            localRepo.hashAllContributors = true
+            
+            configurator.resetAndSave()
+            configurator.addLocalRepoPersistent(localRepo)
+            configurator.setUsernamePersistent(options.username)
+            configurator.setPasswordPersistent(options.password)
+            configurator.saveToFile()
+            
+            // auth
+            val (_, error) = api.authorize()
+            if (error != null && error.message != "") {
+                Logger.error("Auth error")
+            }
+            
+            val process = api.postProcessCreate(requestNumEntries = 1).getOrThrow()
+            if (process.entries.isNotEmpty()) {
+                localRepo.processEntryId = process.entries[0].id
+            }
+
+            try {
+                app.hashers.RepoHasher(api, configurator).update(localRepo)
+                Logger.print("Hashing completed.")
+            } catch (e: Throwable) {
+                Logger.error(e, "Error while hashing")
+            }
+        } else {
+            Logger.error("No valid git repository found at specified path $pathStr")
+        }
     }
 
     private fun showHelp(jc: JCommander) {
