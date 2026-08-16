@@ -889,14 +889,19 @@
             </div>
             <ul class="repo-list">
                 {{range .Repos}}
-                <li class="repo-card">
-                    <div class="repo-card-title">{{.Rehash}}</div>
-                    <div class="repo-card-stats">
-                        <span>{{.CommitCount}} commits</span>
-                        <span>&bull;</span>
-                        <span style="color: var(--accent-emerald);">+{{.LinesAdded}}</span>
-                        <span style="color: var(--accent-rose);">-{{.LinesDeleted}}</span>
+                <li class="repo-card" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                    <div style="min-width: 0;">
+                        <div class="repo-card-title">{{.Rehash}}</div>
+                        <div class="repo-card-stats">
+                            <span>{{.CommitCount}} commits</span>
+                            <span>&bull;</span>
+                            <span style="color: var(--accent-emerald);">+{{.LinesAdded}}</span>
+                            <span style="color: var(--accent-rose);">-{{.LinesDeleted}}</span>
+                        </div>
                     </div>
+                    <a href="/r/{{.Rehash}}" class="btn btn-outline" style="min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.725rem; font-weight: 700; flex-shrink: 0;" title="View Contributor Hall of Fame" target="_blank">
+                        &#127775; Hall of Fame
+                    </a>
                 </li>
                 {{end}}
             </ul>

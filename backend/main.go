@@ -385,8 +385,7 @@ func main() {
 				JOIN commits c ON c.repo_rehash = r.rehash
 				WHERE c.author_email = $1
 				GROUP BY r.rehash
-				ORDER BY commit_count DESC
-				LIMIT 10`, email)
+				ORDER BY commit_count DESC`, email)
 		} else {
 			rows, err = db.Query(`
 				SELECT r.rehash, COUNT(c.rehash) as commit_count, 
@@ -395,8 +394,7 @@ func main() {
 				FROM repos r
 				LEFT JOIN commits c ON c.repo_rehash = r.rehash
 				GROUP BY r.rehash
-				ORDER BY commit_count DESC
-				LIMIT 10`)
+				ORDER BY commit_count DESC`)
 		}
 
 		if err != nil {
@@ -559,23 +557,33 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Fetch repos in background to avoid blocking request
+	// Fetch ALL repos across all pages in background to avoid blocking request
 	go func(email string, token *oauth2.Token) {
 		client := github.NewClient(oauthConfig.Client(context.Background(), token))
+		var allRepos []*github.Repository
 		opt := &github.RepositoryListByAuthenticatedUserOptions{
 			Type:        "owner",
-			ListOptions: github.ListOptions{PerPage: 100},
-		}
-		repos, _, err := client.Repositories.ListByAuthenticatedUser(context.Background(), opt)
-		if err != nil {
-			slog.Error("Failed to fetch repositories for user", "email", email, "error", err)
-			return
+			ListOptions: github.ListOptions{PerPage: 100, Page: 1},
 		}
 
-		slog.Info("Discovered repositories for user", "count", len(repos), "email", email)
+		for {
+			repos, resp, err := client.Repositories.ListByAuthenticatedUser(context.Background(), opt)
+			if err != nil {
+				slog.Error("Failed to fetch repositories for user", "email", email, "page", opt.Page, "error", err)
+				break
+			}
+			allRepos = append(allRepos, repos...)
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+
+		slog.Info("Discovered repositories across all pages for user", "total_count", len(allRepos), "email", email)
 		skippedCount := 0
 		enqueuedCount := 0
 
-		for _, repo := range repos {
+		for _, repo := range allRepos {
 			cloneURL := repo.GetCloneURL()
 			repoName := repo.GetFullName()
 			pushedAt := ""
@@ -607,7 +615,7 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 			enqueuedCount++
 		}
 
-		slog.Info("Repository sync planning complete", "total", len(repos), "skipped_unchanged", skippedCount, "enqueued_for_sync", enqueuedCount, "email", email)
+		slog.Info("Repository sync planning complete", "total_repos", len(allRepos), "skipped_unchanged", skippedCount, "enqueued_for_sync", enqueuedCount, "email", email)
 	}(email, token)
 
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
@@ -941,8 +949,7 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 		JOIN commits c ON c.repo_rehash = r.rehash
 		WHERE c.author_email = $1
 		GROUP BY r.rehash
-		ORDER BY commit_count DESC
-		LIMIT 10`, identifier)
+		ORDER BY commit_count DESC`, identifier)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
