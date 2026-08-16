@@ -3,995 +3,323 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Name}} — Sourcerer Developer Intelligence Profile</title>
-    <meta name="description" content="Engineering profile, language telemetry, and coding habits for {{.Name}} on Sourcerer.">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
-    <style>
-        :root {
-            /* Palette: Deep Violet & Electric Purple Cyber-Intelligence */
-            --bg-base: #090514;
-            --bg-surface: #120d24;
-            --bg-surface-raised: #1a1336;
-            --bg-surface-hover: #241b4a;
-            --bg-glass: rgba(18, 13, 36, 0.82);
-            
-            --border-subtle: rgba(139, 92, 246, 0.16);
-            --border-card: rgba(139, 92, 246, 0.24);
-            --border-hover: rgba(168, 85, 247, 0.45);
-            --border-active: #8b5cf6;
-
-            --primary: #8b5cf6;
-            --primary-light: #a855f7;
-            --primary-dark: #6d28d9;
-            --primary-glow: rgba(139, 92, 246, 0.28);
-            --primary-glow-strong: rgba(168, 85, 247, 0.4);
-
-            --accent-emerald: #10b981;
-            --accent-rose: #f43f5e;
-            --accent-amber: #f59e0b;
-            --accent-cyan: #06b6d4;
-
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            --text-dim: #64748b;
-
-            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-            --radius-xs: 4px;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 18px;
-            --radius-full: 9999px;
-
-            --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
-            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(139, 92, 246, 0.15);
-            --shadow-glow: 0 0 25px -3px var(--primary-glow);
-            
-            --transition-smooth: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-sans);
-            background-color: var(--bg-base);
-            color: var(--text-primary);
-            line-height: 1.6;
-            min-height: 100vh;
-            background-image: 
-                radial-gradient(ellipse 80% 50% at 50% -15%, rgba(139, 92, 246, 0.22), transparent 70%),
-                radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1), transparent 50%),
-                radial-gradient(circle at 10% 40%, rgba(168, 85, 247, 0.08), transparent 40%);
-            background-attachment: fixed;
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .container {
-            max-width: 1140px;
-            margin: 0 auto;
-            padding: 2.25rem 1.5rem 4.5rem;
-        }
-
-        /* Top Navigation */
-        nav {
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 1rem 1.5rem;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: var(--shadow-card);
-        }
-
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            color: var(--text-primary);
-            font-weight: 800;
-            font-size: 1.2rem;
-            letter-spacing: -0.02em;
-        }
-
-        .nav-logo {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            color: #ffffff;
-            box-shadow: 0 2px 10px var(--primary-glow);
-        }
-
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: #ffffff;
-            padding: 0.5rem 1.15rem;
-            border-radius: var(--radius-md);
-            text-decoration: none;
-            font-family: var(--font-sans);
-            font-size: 0.875rem;
-            font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            min-height: 40px;
-            box-shadow: 0 4px 14px var(--primary-glow);
-        }
-
-        .btn:hover {
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px var(--primary-glow-strong);
-        }
-
-        .btn-outline {
-            background: var(--bg-surface-raised);
-            color: var(--text-secondary);
-            border: 1px solid var(--border-card);
-            box-shadow: none;
-        }
-
-        .btn-outline:hover {
-            background: var(--bg-surface-hover);
-            color: var(--text-primary);
-            border-color: var(--border-hover);
-            transform: translateY(-1px);
-        }
-
-        /* Profile Hero Banner */
-        .profile-hero {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 2.25rem;
-            margin-bottom: 2rem;
-            box-shadow: var(--shadow-card);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1.75rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .profile-hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--primary-light), var(--accent-cyan), transparent);
-        }
-
-        .profile-info {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        .avatar-glow {
-            position: relative;
-        }
-
-        .avatar {
-            width: 88px;
-            height: 88px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.4rem;
-            font-weight: 800;
-            color: #ffffff;
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 0 30px var(--primary-glow);
-            text-transform: uppercase;
-        }
-
-        .profile-meta h1 {
-            font-size: 1.85rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .profile-email {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            font-family: var(--font-mono);
-            margin-bottom: 0.5rem;
-        }
-
-        .verified-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.75rem;
-            font-weight: 700;
-            background: rgba(139, 92, 246, 0.15);
-            color: var(--primary-light);
-            padding: 0.25rem 0.75rem;
-            border-radius: var(--radius-full);
-            border: 1px solid rgba(139, 92, 246, 0.35);
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-        }
-
-        .hero-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        /* Summary Metric Cards */
-        .stats-summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.25rem;
-            margin-bottom: 2rem;
-        }
-
-        .summary-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-md);
-            padding: 1.4rem 1.5rem;
-            box-shadow: var(--shadow-card);
-            transition: var(--transition-smooth);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .summary-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--border-hover);
-        }
-
-        .summary-card .value {
-            font-family: var(--font-mono);
-            font-size: 1.95rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            margin-bottom: 0.25rem;
-            line-height: 1.1;
-        }
-
-        .summary-card.commits .value { color: var(--primary-light); text-shadow: 0 0 15px var(--primary-glow); }
-        .summary-card.added .value { color: var(--accent-emerald); }
-        .summary-card.deleted .value { color: var(--accent-rose); }
-        .summary-card.repos .value { color: var(--accent-cyan); }
-
-        .summary-card .label {
-            font-size: 0.775rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        /* Main Content Grid */
-        .profile-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.75rem;
-            margin-bottom: 2rem;
-        }
-
-        .section-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 1.75rem;
-            box-shadow: var(--shadow-card);
-        }
-
-        .section-header-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.25rem;
-        }
-
-        .section-card h2 {
-            font-size: 0.95rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        /* Language Bar */
-        .lang-bar-wrapper {
-            display: flex;
-            height: 12px;
-            border-radius: var(--radius-full);
-            overflow: hidden;
-            background-color: var(--bg-base);
-            border: 1px solid var(--border-subtle);
-            margin-bottom: 1.25rem;
-            gap: 2px;
-            padding: 1px;
-        }
-
-        .lang-bar-segment {
-            border-radius: 4px;
-            transition: width 0.4s ease;
-        }
-
-        .lang-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 0.55rem;
-        }
-
-        .lang-list li {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(18, 13, 36, 0.4);
-            border: 1px solid var(--border-subtle);
-            padding: 0.55rem 0.85rem;
-            border-radius: var(--radius-sm);
-        }
-
-        .lang-tech {
-            display: flex;
-            align-items: center;
-            gap: 0.65rem;
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: var(--text-primary);
-        }
-
-        .lang-dot {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            box-shadow: 0 0 8px currentColor;
-        }
-
-        .lang-meta {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-        }
-
-        .lang-percentage {
-            font-weight: 700;
-            color: var(--primary-light);
-            background: rgba(139, 92, 246, 0.12);
-            padding: 0.15rem 0.5rem;
-            border-radius: var(--radius-sm);
-        }
-
-        /* Facts Grid */
-        .facts-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.85rem;
-        }
-
-        .fact-card {
-            background: var(--bg-surface-raised);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .fact-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: var(--radius-sm);
-            background: rgba(139, 92, 246, 0.15);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-        }
-
-        .fact-details {
-            min-width: 0;
-        }
-
-        .fact-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .fact-desc {
-            font-size: 0.725rem;
-            color: var(--text-muted);
-        }
-
-        /* Repositories */
-        .repos-container {
-            margin-bottom: 2rem;
-        }
-
-        .repo-list {
-            list-style: none;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1rem;
-        }
-
-        .repo-card {
-            background: var(--bg-surface-raised);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-md);
-            padding: 1.25rem;
-            transition: var(--transition-smooth);
-        }
-
-        .repo-card:hover {
-            border-color: var(--border-hover);
-            transform: translateY(-2px);
-        }
-
-        .repo-card-title {
-            font-family: var(--font-mono);
-            font-weight: 700;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            color: var(--text-primary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .repo-card-stats {
-            display: flex;
-            align-items: center;
-            gap: 0.85rem;
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        /* Badge Snippet Embed Card */
-        .badge-snippet-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 2rem;
-            margin-top: 2rem;
-            box-shadow: var(--shadow-card);
-            position: relative;
-        }
-
-        .badge-preview-container {
-            background: var(--bg-base);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 1.5rem;
-            margin: 1.25rem 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow-x: auto;
-        }
-
-        .badge-preview-container img {
-            max-width: 100%;
-            height: auto;
-            border-radius: var(--radius-md);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-        }
-
-        .code-box-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .code-snippet-row {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-        }
-
-        .snippet-label {
-            font-size: 0.775rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .code-copy-group {
-            display: flex;
-            align-items: center;
-            background: var(--bg-base);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            transition: var(--transition-smooth);
-        }
-
-        .code-copy-group:focus-within {
-            border-color: var(--border-active);
-            box-shadow: 0 0 0 2px var(--primary-glow);
-        }
-
-        .badge-code {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            font-family: var(--font-mono);
-            font-size: 0.825rem;
-            color: var(--primary-light);
-            background: transparent;
-            border: none;
-            outline: none;
-            overflow-x: auto;
-            white-space: nowrap;
-            user-select: all;
-        }
-
-        .btn-copy {
-            background: var(--bg-surface-raised);
-            color: var(--text-secondary);
-            border: none;
-            border-left: 1px solid var(--border-subtle);
-            padding: 0.75rem 1.15rem;
-            font-family: var(--font-sans);
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            transition: var(--transition-smooth);
-        }
-
-        .btn-copy:hover {
-            background: var(--primary);
-            color: #ffffff;
-        }
-
-        /* Toast notification */
-        .toast {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: #ffffff;
-            padding: 0.75rem 1.25rem;
-            border-radius: var(--radius-md);
-            font-weight: 600;
-            font-size: 0.875rem;
-            box-shadow: 0 10px 25px var(--primary-glow-strong);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-            z-index: 1000;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* Responsive Breakpoints */
-        @media (max-width: 1024px) {
-            .stats-summary-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .profile-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 1.25rem 1rem 3rem;
-            }
-
-            .profile-hero {
-                padding: 1.5rem;
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1.25rem;
-            }
-
-            .profile-info {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-
-            .hero-actions {
-                width: 100%;
-                flex-direction: column;
-            }
-
-            .hero-actions .btn, .hero-actions .btn-outline {
-                width: 100%;
-            }
-
-            .stats-summary-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .facts-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .badge-snippet-card {
-                padding: 1.25rem;
-            }
-
-            .code-copy-group {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .btn-copy {
-                border-left: none;
-                border-top: 1px solid var(--border-subtle);
-                justify-content: center;
-            }
-        }
-    </style>
+    <title>{{.Name}} — Sourcerer profile</title>
+    <meta name="description" content="{{.Name}}'s engineering profile: commits, languages, coding habits and repositories, read from git history.">
+    {{template "assets"}}
 </head>
 <body>
-    <div class="container">
-        <!-- Top Navigation -->
-        <nav>
-            <a href="/" class="nav-brand">
-                <div class="nav-logo">&#9889;</div>
-                <span>Sourcerer</span>
+    <div class="doc-shell">
+        <nav class="doc-nav">
+            <a href="/" class="rail-brand">
+                {{template "logomark"}}
+                <span class="wordmark">Sourcerer</span>
             </a>
-            <div class="nav-actions">
-                <a href="/" class="btn btn-outline">&larr; Dashboard</a>
-                <button type="button" class="btn" onclick="shareProfile()">
-                    &#128279; Share Profile
+            <div class="doc-nav-actions">
+                <a href="/" class="btn">Dashboard</a>
+                <button type="button" class="btn btn--primary" onclick="shareProfile()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5 20 4"/><path d="M20 4v6"/><path d="M20 4h-6"/><path d="M19 14v4.5A2.5 2.5 0 0 1 16.5 21h-9A2.5 2.5 0 0 1 5 18.5v-9A2.5 2.5 0 0 1 7.5 7H12"/></svg>
+                    Share profile
                 </button>
             </div>
         </nav>
 
-        <!-- Profile Hero Section -->
-        <section class="profile-hero">
-            <div class="profile-info">
-                <div class="avatar-glow">
-                    <div class="avatar">{{slice .Name 0 1}}</div>
-                </div>
-                <div class="profile-meta">
+        <header class="doc-hero">
+            <div class="doc-hero-id">
+                <span class="avatar avatar--lg">{{slice .Name 0 1}}</span>
+                <div class="doc-hero-meta">
                     <h1>{{.Name}}</h1>
-                    <div class="profile-email">{{.Email}}</div>
-                    <span class="verified-badge">&#10003; Sourcerer Verified Engineer</span>
+                    <span class="mono" style="font-size: 0.8125rem; color: var(--ink-3);">{{.Email}}</span>
+                    <div class="doc-hero-tags">
+                        <span class="tag tag--accent">Verified by Sourcerer</span>
+                        <span class="tag">{{len .Repos}} repositories</span>
+                    </div>
                 </div>
             </div>
-            <div class="hero-actions">
-                <a href="/badge/{{.ProfileID}}.svg" target="_blank" class="btn btn-outline">&#128065; View SVG Badge</a>
-                <button type="button" class="btn" onclick="copyProfileLink()">
-                    &#128203; Copy Link
-                </button>
+            <div class="doc-hero-actions">
+                <a href="/badge/{{.ProfileID}}.svg" class="btn">View SVG badge</a>
+                <button type="button" class="btn" onclick="copyProfileLink()">Copy link</button>
             </div>
-        </section>
+        </header>
 
-        <!-- Summary Metrics Grid -->
-        <section class="stats-summary-grid">
-            <div class="summary-card commits">
-                <div class="value">{{.TotalCommits}}</div>
-                <div class="label">Total Commits Indexed</div>
-            </div>
-            <div class="summary-card added">
-                <div class="value">+{{.LinesAdded}}</div>
-                <div class="label">Lines of Code Added</div>
-            </div>
-            <div class="summary-card deleted">
-                <div class="value">-{{.LinesDeleted}}</div>
-                <div class="label">Lines of Code Deleted</div>
-            </div>
-            <div class="summary-card repos">
-                <div class="value">{{len .Repos}}</div>
-                <div class="label">Analyzed Repositories</div>
-            </div>
-        </section>
+        <div class="grid">
+            <!-- Commit volume and the diff it produced -->
+            <section class="panel col-12">
+                <div class="panel-head">
+                    <h2 class="panel-title">Commit volume</h2>
+                    <span class="eyebrow">Across {{len .Repos}} repositories</span>
+                </div>
 
-        <!-- Middle 2-Column Grid: Languages & Habits -->
-        <div class="profile-grid">
-            <!-- Technology Stack -->
-            <section class="section-card">
-                <div class="section-header-row">
-                    <h2>&#9881; Top Technologies &amp; Languages</h2>
-                    <span class="verified-badge">AST TELEMETRY</span>
+                {{if eq .TotalCommits 0}}
+                <div class="empty">
+                    <p class="empty-title">No commits indexed yet</p>
+                    <p class="empty-hint">This profile fills in once repositories have been read.</p>
+                </div>
+                {{else}}
+                <div class="ribbon">
+                    <div class="ribbon-figure">
+                        <span class="ribbon-count">{{.TotalCommits}}</span>
+                        <span class="ribbon-unit">Commits indexed</span>
+                    </div>
+                    <div class="ribbon-track">
+                        <div class="ribbon-bar" role="img"
+                             aria-label="{{.LinesAdded}} lines added, {{.LinesDeleted}} lines deleted">
+                            <span class="ribbon-seg is-add" style="width: {{pctOf .LinesAdded .LinesDeleted}}%"></span>
+                            <span class="ribbon-seg is-del" style="width: {{pctOf .LinesDeleted .LinesAdded}}%"></span>
+                        </div>
+                        <div class="ribbon-legend">
+                            <span class="is-add"><b>+{{.LinesAdded}}</b> added</span>
+                            <span class="is-del"><b>&minus;{{.LinesDeleted}}</b> deleted</span>
+                            <span class="is-net">net <b>{{sub .LinesAdded .LinesDeleted}}</b> lines</span>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+            </section>
+
+            <section class="panel col-6">
+                <div class="panel-head">
+                    <h2 class="panel-title">Languages</h2>
+                    <span class="eyebrow">By lines written</span>
                 </div>
                 {{if not .Languages}}
-                    <p style="color: var(--text-dim); font-style: italic; padding: 1.5rem 0;">No language stats available yet.</p>
+                <div class="empty">
+                    <p class="empty-title">No language data yet</p>
+                    <p class="empty-hint">Languages are detected when a repository is read.</p>
+                </div>
                 {{else}}
-                    <div class="lang-bar-wrapper">
+                <div class="panel-body">
+                    <div class="langbar" role="img" aria-label="Share of lines written per language">
                         {{range $i, $lang := .Languages}}
-                        <div class="lang-bar-segment" style="width: {{$lang.Percentage}}%; background-color: {{if eq $i 0}}#8b5cf6{{else if eq $i 1}}#a855f7{{else if eq $i 2}}#06b6d4{{else if eq $i 3}}#10b981{{else if eq $i 4}}#f59e0b{{else if eq $i 5}}#f43f5e{{else}}#6366f1{{end}};" title="{{$lang.Tech}}: {{$lang.Percentage}}%"></div>
+                        <span class="langbar-seg" style="width: {{$lang.Percentage}}%; background-color: {{series $i}};"
+                              title="{{$lang.Tech}}: {{$lang.Percentage}}%"></span>
                         {{end}}
                     </div>
                     <ul class="lang-list">
                         {{range $i, $lang := .Languages}}
-                        <li>
-                            <div class="lang-tech">
-                                <span class="lang-dot" style="color: {{if eq $i 0}}#8b5cf6{{else if eq $i 1}}#a855f7{{else if eq $i 2}}#06b6d4{{else if eq $i 3}}#10b981{{else if eq $i 4}}#f59e0b{{else if eq $i 5}}#f43f5e{{else}}#6366f1{{end}}; background-color: currentColor;"></span>
+                        <li class="lang-item">
+                            <span class="lang-name">
+                                <span class="lang-dot" style="color: {{series $i}};"></span>
                                 <span>{{$lang.Tech}}</span>
-                            </div>
-                            <div class="lang-meta">
-                                <span class="lang-percentage">{{$lang.Percentage}}%</span>
-                                <span style="color: var(--text-dim);">{{$lang.Lines}} lines</span>
-                            </div>
+                            </span>
+                            <span class="lang-figures">
+                                <span class="lang-pct">{{$lang.Percentage}}%</span>
+                                <span class="lang-lines">{{$lang.Lines}} lines</span>
+                            </span>
                         </li>
                         {{end}}
                     </ul>
+                </div>
                 {{end}}
             </section>
 
-            <!-- Coding Habits & Behavioral Facts -->
-            <section class="section-card">
-                <div class="section-header-row">
-                    <h2>&#9889; Coding Habits &amp; Behavioral Style</h2>
-                    <span class="verified-badge">HEURISTICS</span>
+            <section class="panel col-6">
+                <div class="panel-head">
+                    <h2 class="panel-title">Coding habits</h2>
+                    <span class="eyebrow">From commit patterns</span>
                 </div>
                 {{if not .Facts.HasData}}
-                    <p style="color: var(--text-dim); font-style: italic; padding: 1.5rem 0;">Habits will appear once commit history is indexed.</p>
+                <div class="empty">
+                    <p class="empty-title">No habits computed yet</p>
+                    <p class="empty-hint">Habits appear once commit history has been indexed.</p>
+                </div>
                 {{else}}
-                    <div class="facts-grid">
-                        {{if .Facts.WorkStyle}}
-                        <div class="fact-card">
-                            <span class="fact-icon">{{.Facts.WorkStyleIcon}}</span>
-                            <div class="fact-details">
-                                <span class="fact-title">{{.Facts.WorkStyle}}</span>
-                                <span class="fact-desc">{{.Facts.WorkStyleDesc}}</span>
-                            </div>
-                        </div>
-                        {{end}}
-
-                        {{if .Facts.IndentHabit}}
-                        <div class="fact-card">
-                            <span class="fact-icon">{{.Facts.IndentIcon}}</span>
-                            <div class="fact-details">
-                                <span class="fact-title">{{.Facts.IndentHabit}}</span>
-                                <span class="fact-desc">{{.Facts.IndentDesc}}</span>
-                            </div>
-                        </div>
-                        {{end}}
-
-                        {{if .Facts.NamingStyle}}
-                        <div class="fact-card">
-                            <span class="fact-icon">{{.Facts.NamingIcon}}</span>
-                            <div class="fact-details">
-                                <span class="fact-title">{{.Facts.NamingStyle}}</span>
-                                <span class="fact-desc">{{.Facts.NamingDesc}}</span>
-                            </div>
-                        </div>
-                        {{end}}
-
-                        {{if .Facts.ScheduleStyle}}
-                        <div class="fact-card">
-                            <span class="fact-icon">{{.Facts.ScheduleIcon}}</span>
-                            <div class="fact-details">
-                                <span class="fact-title">{{.Facts.ScheduleStyle}}</span>
-                                <span class="fact-desc">{{.Facts.ScheduleDesc}}</span>
-                            </div>
-                        </div>
-                        {{end}}
-
-                        {{if .Facts.AvgCommitSize}}
-                        <div class="fact-card">
-                            <span class="fact-icon">&#128202;</span>
-                            <div class="fact-details">
-                                <span class="fact-title" style="font-family: var(--font-mono);">{{.Facts.AvgCommitSize}} lines</span>
-                                <span class="fact-desc">Avg Commit Size</span>
-                            </div>
-                        </div>
-                        {{end}}
-
-                        {{if .Facts.AvgLineLength}}
-                        <div class="fact-card">
-                            <span class="fact-icon">&#128221;</span>
-                            <div class="fact-details">
-                                <span class="fact-title" style="font-family: var(--font-mono);">{{.Facts.AvgLineLength}} chars</span>
-                                <span class="fact-desc">Avg Line Length</span>
-                            </div>
-                        </div>
-                        {{end}}
+                <div class="facts">
+                    {{if .Facts.WorkStyle}}
+                    <div class="fact">
+                        <span class="fact-icon">{{.Facts.WorkStyleIcon}}</span>
+                        <span class="fact-body">
+                            <span class="fact-title">{{.Facts.WorkStyle}}</span>
+                            <span class="fact-desc">{{.Facts.WorkStyleDesc}}</span>
+                        </span>
                     </div>
+                    {{end}}
+
+                    {{if .Facts.IndentHabit}}
+                    <div class="fact">
+                        <span class="fact-icon">{{.Facts.IndentIcon}}</span>
+                        <span class="fact-body">
+                            <span class="fact-title">{{.Facts.IndentHabit}}</span>
+                            <span class="fact-desc">{{.Facts.IndentDesc}}</span>
+                        </span>
+                    </div>
+                    {{end}}
+
+                    {{if .Facts.NamingStyle}}
+                    <div class="fact">
+                        <span class="fact-icon">{{.Facts.NamingIcon}}</span>
+                        <span class="fact-body">
+                            <span class="fact-title">{{.Facts.NamingStyle}}</span>
+                            <span class="fact-desc">{{.Facts.NamingDesc}}</span>
+                        </span>
+                    </div>
+                    {{end}}
+
+                    {{if .Facts.ScheduleStyle}}
+                    <div class="fact">
+                        <span class="fact-icon">{{.Facts.ScheduleIcon}}</span>
+                        <span class="fact-body">
+                            <span class="fact-title">{{.Facts.ScheduleStyle}}</span>
+                            <span class="fact-desc">{{.Facts.ScheduleDesc}}</span>
+                        </span>
+                    </div>
+                    {{end}}
+
+                    {{if .Facts.AvgCommitSize}}
+                    <div class="fact">
+                        <span class="fact-icon">&#128202;</span>
+                        <span class="fact-body">
+                            <span class="fact-title mono">{{.Facts.AvgCommitSize}} lines</span>
+                            <span class="fact-desc">Average commit size</span>
+                        </span>
+                    </div>
+                    {{end}}
+
+                    {{if .Facts.AvgLineLength}}
+                    <div class="fact">
+                        <span class="fact-icon">&#128221;</span>
+                        <span class="fact-body">
+                            <span class="fact-title mono">{{.Facts.AvgLineLength}} chars</span>
+                            <span class="fact-desc">Average line length</span>
+                        </span>
+                    </div>
+                    {{end}}
+                </div>
                 {{end}}
+            </section>
+
+            {{if .Libraries}}
+            <section class="panel col-12">
+                <div class="panel-head">
+                    <h2 class="panel-title">Libraries and frameworks</h2>
+                    <a href="/libraries" class="link-more">Browse the catalog &rarr;</a>
+                </div>
+                <ul class="rows rows--split">
+                    {{range .Libraries}}
+                    <li class="row">
+                        <div class="row-main">
+                            <a href="/libraries/{{.ID}}" class="row-name">{{.Name}}</a>
+                            <span class="row-meta">{{.Category}}</span>
+                        </div>
+                        <div class="row-side">
+                            <span class="tag tag--add">+{{.Lines}} lines</span>
+                        </div>
+                    </li>
+                    {{end}}
+                </ul>
+            </section>
+            {{end}}
+
+            {{if .Repos}}
+            <section class="panel col-12">
+                <div class="panel-head">
+                    <h2 class="panel-title">Repositories</h2>
+                    <span class="eyebrow">{{len .Repos}} analyzed</span>
+                </div>
+                <ul class="rows rows--split">
+                    {{range .Repos}}
+                    <li class="row">
+                        <div class="row-main">
+                            <span class="row-title">{{.Rehash}}</span>
+                            <span class="row-meta">
+                                <span>{{.CommitCount}} commits</span>
+                                <span class="is-add">+{{.LinesAdded}}</span>
+                                <span class="is-del">&minus;{{.LinesDeleted}}</span>
+                            </span>
+                            <span class="microbar" aria-hidden="true">
+                                <span class="is-add" style="width: {{pctOf .LinesAdded .LinesDeleted}}%"></span>
+                                <span class="is-del" style="width: {{pctOf .LinesDeleted .LinesAdded}}%"></span>
+                            </span>
+                        </div>
+                        <div class="row-side">
+                            <a href="/r/{{.Rehash}}" class="btn btn--sm">Hall of fame</a>
+                        </div>
+                    </li>
+                    {{end}}
+                </ul>
+            </section>
+            {{end}}
+
+            <section class="panel col-12">
+                <div class="panel-head">
+                    <h2 class="panel-title">Embed this profile in a README</h2>
+                    <span class="eyebrow">Markdown &amp; HTML</span>
+                </div>
+
+                <div class="embed-grid">
+                    <div>
+                        <div class="code-field">
+                            <span class="eyebrow">Markdown</span>
+                            <div class="code-block">
+                                <input type="text" readonly id="markdown-snippet" aria-label="Markdown embed code" value="[![Sourcerer profile]({{.PublicBaseURL}}/badge/{{.ProfileID}}.svg)]({{.PublicBaseURL}}/p/{{.ProfileID}})">
+                                <button type="button" class="btn btn--sm" onclick="copySnippet('markdown-snippet', 'Markdown')">Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="code-field">
+                            <span class="eyebrow">HTML</span>
+                            <div class="code-block">
+                                <input type="text" readonly id="html-snippet" aria-label="HTML embed code" value="&lt;a href=&quot;{{.PublicBaseURL}}/p/{{.ProfileID}}&quot;&gt;&lt;img src=&quot;{{.PublicBaseURL}}/badge/{{.ProfileID}}.svg&quot; alt=&quot;{{.Name}} Sourcerer profile&quot; /&gt;&lt;/a&gt;">
+                                <button type="button" class="btn btn--sm" onclick="copySnippet('html-snippet', 'HTML')">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="code-field">
+                        <span class="eyebrow">Preview</span>
+                        <div class="badge-preview">
+                            <img src="/badge/{{.ProfileID}}.svg" alt="{{.Name}} Sourcerer profile badge" loading="lazy">
+                        </div>
+                    </div>
+                </div>
             </section>
         </div>
 
-        <!-- Recognized Libraries & Domain Expertise Section -->
-        {{if .Libraries}}
-        <section class="section-card" style="margin-bottom: 2rem;">
-            <div class="section-header-row">
-                <h2>&#128230; Recognized Libraries &amp; Frameworks</h2>
-                <a href="/libraries" class="verified-badge" style="text-decoration: none;" target="_blank">AWESOME LIBRARIES &rarr;</a>
+        <footer class="foot">
+            <span>Sourcerer &middot; engineering profiles from git history</span>
+            <div class="foot-links">
+                <a href="/libraries">Libraries</a>
+                <a href="/badge/{{.ProfileID}}.svg">SVG badge</a>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-                {{range .Libraries}}
-                <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); padding: 1rem 1.25rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; transition: var(--transition-smooth);">
-                    <div>
-                        <a href="/libraries/{{.ID}}" style="font-weight: 700; color: var(--text-primary); text-decoration: none; font-size: 0.95rem;" target="_blank">
-                            {{.Name}}
-                        </a>
-                        <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">{{.Category}}</span>
-                    </div>
-                    <span style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-emerald); font-size: 0.85rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); padding: 0.2rem 0.55rem; border-radius: var(--radius-sm);">
-                        +{{.Lines}} lines
-                    </span>
-                </div>
-                {{end}}
-            </div>
-        </section>
-        {{end}}
-
-        <!-- Repositories Grid Section -->
-        {{if .Repos}}
-        <section class="section-card repos-container">
-            <div class="section-header-row">
-                <h2>&#128193; Analyzed Repositories</h2>
-                <span class="verified-badge">{{len .Repos}} TOTAL</span>
-            </div>
-            <ul class="repo-list">
-                {{range .Repos}}
-                <li class="repo-card" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                    <div style="min-width: 0;">
-                        <div class="repo-card-title">{{.Rehash}}</div>
-                        <div class="repo-card-stats">
-                            <span>{{.CommitCount}} commits</span>
-                            <span>&bull;</span>
-                            <span style="color: var(--accent-emerald);">+{{.LinesAdded}}</span>
-                            <span style="color: var(--accent-rose);">-{{.LinesDeleted}}</span>
-                        </div>
-                    </div>
-                    <a href="/r/{{.Rehash}}" class="btn btn-outline" style="min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.725rem; font-weight: 700; flex-shrink: 0;" title="View Contributor Hall of Fame" target="_blank">
-                        &#127775; Hall of Fame
-                    </a>
-                </li>
-                {{end}}
-            </ul>
-        </section>
-        {{end}}
-
-        <!-- Dynamic README Badge Embed Hub -->
-        <section class="badge-snippet-card">
-            <div class="section-header-row">
-                <h2>&#128065; Embed Dynamic Badge in GitHub README</h2>
-                <span class="verified-badge">GITHUB EMBED</span>
-            </div>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">
-                Showcase your live engineering statistics directly on your personal GitHub Profile README or project pages:
-            </p>
-
-            <div class="badge-preview-container">
-                <img src="/badge/{{.ProfileID}}.svg" alt="{{.Name}} Sourcerer Profile Badge" loading="lazy">
-            </div>
-
-            <div class="code-box-wrapper">
-                <div class="code-snippet-row">
-                    <span class="snippet-label">
-                        <span>Markdown Embed Code</span>
-                    </span>
-                    <div class="code-copy-group">
-                        <input type="text" readonly class="badge-code" id="markdown-snippet" value="[![Sourcerer Profile]({{.PublicBaseURL}}/badge/{{.ProfileID}}.svg)]({{.PublicBaseURL}}/p/{{.ProfileID}})">
-                        <button type="button" class="btn-copy" onclick="copySnippet('markdown-snippet')">
-                            &#128203; Copy Markdown
-                        </button>
-                    </div>
-                </div>
-
-                <div class="code-snippet-row">
-                    <span class="snippet-label">
-                        <span>HTML Embed Code</span>
-                    </span>
-                    <div class="code-copy-group">
-                        <input type="text" readonly class="badge-code" id="html-snippet" value="&lt;a href=&quot;{{.PublicBaseURL}}/p/{{.ProfileID}}&quot;&gt;&lt;img src=&quot;{{.PublicBaseURL}}/badge/{{.ProfileID}}.svg&quot; alt=&quot;{{.Name}} Sourcerer Profile&quot; /&gt;&lt;/a&gt;">
-                        <button type="button" class="btn-copy" onclick="copySnippet('html-snippet')">
-                            &#128203; Copy HTML
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
+        </footer>
     </div>
 
-    <!-- Live Toast Notification -->
-    <div id="toast" class="toast">
-        <span>&#10003;</span>
-        <span id="toast-message">Copied to clipboard!</span>
+    <div id="toast" class="toast" role="status" aria-live="polite">
+        <span id="toast-message">Copied</span>
     </div>
 
     <script>
         function showToast(msg) {
             const toast = document.getElementById('toast');
-            const toastMsg = document.getElementById('toast-message');
-            toastMsg.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
+            document.getElementById('toast-message').textContent = msg;
+            toast.classList.add('is-visible');
+            setTimeout(() => toast.classList.remove('is-visible'), 2500);
         }
 
-        function copySnippet(id) {
+        function copySnippet(id, label) {
             const input = document.getElementById(id);
             if (!input) return;
             navigator.clipboard.writeText(input.value).then(() => {
-                showToast('Snippet copied to clipboard!');
+                showToast(label + ' snippet copied');
             }).catch(() => {
                 input.select();
                 document.execCommand('copy');
-                showToast('Snippet copied to clipboard!');
+                showToast(label + ' snippet copied');
             });
         }
 
         function copyProfileLink() {
             navigator.clipboard.writeText(window.location.href).then(() => {
-                showToast('Profile URL copied to clipboard!');
+                showToast('Profile link copied');
             }).catch(() => {
-                showToast('Profile URL: ' + window.location.href);
+                showToast('Profile link: ' + window.location.href);
             });
         }
 
         function shareProfile() {
             if (navigator.share) {
                 navigator.share({
-                    title: '{{.Name}} — Sourcerer Engineering Profile',
-                    text: 'Check out {{.Name}}\'s developer statistics and code habits on Sourcerer.',
+                    title: '{{.Name}} — Sourcerer profile',
+                    text: '{{.Name}}\'s commits, languages and coding habits on Sourcerer.',
                     url: window.location.href
                 }).catch(() => {});
             } else {

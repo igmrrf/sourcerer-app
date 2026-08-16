@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -106,6 +107,22 @@ var oauthConfig = &oauth2.Config{
 //go:embed templates/*
 var templateFS embed.FS
 
+//go:embed static/*
+var staticFS embed.FS
+
+// assetVersion fingerprints the bundled stylesheet so a redeploy invalidates
+// the browser cache without anyone remembering to bump a number.
+var assetVersion = fingerprintAssets()
+
+func fingerprintAssets() string {
+	css, err := staticFS.ReadFile("static/app.css")
+	if err != nil {
+		return "dev"
+	}
+	sum := sha256.Sum256(css)
+	return hex.EncodeToString(sum[:])[:12]
+}
+
 //go:embed schema.sql
 var schemaSQL string
 
@@ -117,8 +134,51 @@ var (
 	db       *sql.DB
 )
 
+// seriesPalette is the categorical ramp used for language bars and dots. It
+// matches --series-N in static/app.css; keep the two in step.
+var seriesPalette = []template.CSS{"#7c3aed", "#2f4bff", "#0891b2", "#0e9f6e", "#c2660a", "#e5484d", "#64748b"}
+
 var templateFuncs = template.FuncMap{
-	"add": func(a, b int) int { return a + b },
+	"series": func(i int) template.CSS { return seriesPalette[i%len(seriesPalette)] },
+	"add":    func(a, b int) int { return a + b },
+	"sub":    func(a, b int) int { return a - b },
+	// asset builds a cache-busted URL for a file under static/.
+	"asset": func(name string) string { return "/static/" + name + "?v=" + assetVersion },
+	// pctOf renders a's share of a+b as a CSS percentage, used by the diff
+	// ribbon. Returns 0 when there is nothing to divide.
+	"pctOf": func(a, b int) string {
+		total := a + b
+		if total <= 0 {
+			return "0"
+		}
+		return strconv.FormatFloat(float64(a)*100/float64(total), 'f', 2, 64)
+	},
+}
+
+// staticHandler serves the stylesheet. Dev mode reads from disk so edits show
+// up on reload; production serves the embedded copy with a long cache, which is
+// safe because the URL carries the content fingerprint.
+func staticHandler() http.Handler {
+	sub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		slog.Error("Error opening embedded static assets", "error", err)
+		os.Exit(1)
+	}
+	embedded := http.FileServer(http.FS(sub))
+	onDisk := http.FileServer(http.Dir("static"))
+
+	return http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isDevMode() {
+			w.Header().Set("Cache-Control", "no-store")
+			if _, err := os.Stat("static"); err == nil {
+				onDisk.ServeHTTP(w, r)
+				return
+			}
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		embedded.ServeHTTP(w, r)
+	}))
 }
 
 func isDevMode() bool {
@@ -370,10 +430,30 @@ func main() {
 	r.Use(middleware.ThrottleBacklog(100, 50, 5*time.Second))
 
 	r.Use(securityHeadersMiddleware)
+	r.Use(robotsHeaderMiddleware)
 	r.Use(corsMiddleware)
 
 	// API routes for Sourcerer CLI ingestion
 	r.Mount("/api", api.Routes())
+
+	// Bundled stylesheet and generated icons
+	r.Handle("/static/*", staticHandler())
+
+	// Crawler surfaces. Icons and the manifest live under /static but are also
+	// aliased at the root, where browsers and crawlers look for them first.
+	r.Get("/robots.txt", handleRobotsTxt)
+	r.Get("/sitemap.xml", handleSitemapXML)
+	for path, asset := range map[string]string{
+		"/favicon.ico":          "favicon.ico",
+		"/favicon.svg":          "favicon.svg",
+		"/apple-touch-icon.png": "apple-touch-icon.png",
+		"/site.webmanifest":     "site.webmanifest",
+	} {
+		name := asset
+		r.Get(path, func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/static/"+name+"?v="+assetVersion, http.StatusMovedPermanently)
+		})
+	}
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := db.Ping(); err != nil {
@@ -395,7 +475,10 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		sessionEmail := getSessionEmail(r)
 		if sessionEmail == "" {
-			http.Redirect(w, r, "/auth/github/login", http.StatusFound)
+			// Signed-out visitors — including crawlers — get a real page here.
+			// Redirecting straight into OAuth left the site with no indexable
+			// front door at all.
+			handleLanding(w, r)
 			return
 		}
 
@@ -419,12 +502,30 @@ func main() {
 		user := &UserInfo{Name: sessionEmail, Email: sessionEmail, PublicProfileID: profileID}
 		authors := []Author{{Email: sessionEmail, Name: sessionEmail}}
 
+		base := getPublicBaseURL(r)
+		seo := newSEO(base, "/", "Sourcerer — engineering profiles from git history",
+			"Sourcerer reads your git history and turns it into a profile: commit volume, language split, coding habits, recognized libraries and a shareable README badge.")
+		// The dashboard is behind a session; only the marketing-facing root is
+		// worth indexing, and this page is what a signed-in user sees.
+		seo.NoIndex = true
+		seo.JSONLD = newJSONLD(map[string]any{
+			"@context":            "https://schema.org",
+			"@type":               "SoftwareApplication",
+			"name":                siteName,
+			"url":                 base,
+			"applicationCategory": "DeveloperApplication",
+			"operatingSystem":     "Web",
+			"description":         seo.Description,
+		})
+
 		data := struct {
 			Authors []Author
 			User    *UserInfo
+			SEO     SEOMeta
 		}{
 			Authors: authors,
 			User:    user,
+			SEO:     seo,
 		}
 		renderTemplate(w, "index.html", data)
 	})
@@ -1087,6 +1188,40 @@ type ProfileData struct {
 	Libraries     []TechnologyMeta
 	Repos         []RepoInfo
 	PublicBaseURL string
+	// SEO is request-derived page metadata, deliberately excluded from the
+	// cached profile JSON.
+	SEO SEOMeta `json:"-"`
+}
+
+// buildProfileSEO writes the page metadata for a public profile. The
+// description leads with the numbers a searcher would recognise.
+func buildProfileSEO(data *ProfileData, baseURL string) {
+	description := fmt.Sprintf("%s has %s and %s across %s on Sourcerer. See the language split, coding habits and libraries behind the work.",
+		data.Name,
+		plural(data.TotalCommits, "commit"),
+		plural(data.LinesAdded, "line")+" written",
+		plural(len(data.Repos), "repository"),
+	)
+
+	seo := newSEO(baseURL, "/p/"+data.ProfileID,
+		data.Name+" — engineering profile | "+siteName,
+		truncateDescription(description, 200))
+	// og:image stays the raster share card: the profile badge is an SVG, which
+	// social crawlers will not render.
+	seo.Type = "profile"
+	seo.ImageAlt = data.Name + "'s engineering profile on Sourcerer"
+	seo.JSONLD = newJSONLD(map[string]any{
+		"@context": "https://schema.org",
+		"@type":    "ProfilePage",
+		"url":      seo.Canonical,
+		"name":     seo.Title,
+		"mainEntity": map[string]any{
+			"@type": "Person",
+			"name":  data.Name,
+			"url":   seo.Canonical,
+		},
+	})
+	data.SEO = seo
 }
 
 func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
@@ -1120,6 +1255,7 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		data.ProfileID = profileID
 		data.PublicBaseURL = getPublicBaseURL(r)
+		buildProfileSEO(&data, data.PublicBaseURL)
 		renderTemplate(w, "profile.html", data)
 		return
 	}
@@ -1160,6 +1296,7 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data.PublicBaseURL = getPublicBaseURL(r)
+	buildProfileSEO(&data, data.PublicBaseURL)
 	renderTemplate(w, "profile.html", data)
 }
 
@@ -1311,6 +1448,8 @@ type HallOfFameData struct {
 	NewContributors      []ContributorStat `json:"new"`
 	Languages            []LangStat        `json:"languages"`
 	PublicBaseURL        string            `json:"public_base_url"`
+	// SEO is request-derived page metadata, never part of the API payload.
+	SEO SEOMeta `json:"-"`
 }
 
 func getHallOfFameData(repoRehash string) HallOfFameData {
@@ -1681,6 +1820,28 @@ func handleHallOfFameHTML(w http.ResponseWriter, r *http.Request) {
 
 	data := getHallOfFameData(repoRehash)
 	data.PublicBaseURL = getPublicBaseURL(r)
+
+	description := fmt.Sprintf("Who builds %s: %s from %s, with the language split and newest arrivals, read from git history.",
+		data.RepoName,
+		plural(data.TotalCommits, "commit"),
+		plural(data.TotalContributors, "contributor"),
+	)
+	seo := newSEO(data.PublicBaseURL, "/r/"+data.RepoRehash,
+		data.RepoName+" contributors — hall of fame | "+siteName,
+		truncateDescription(description, 200))
+	seo.ImageAlt = "Contributor hall of fame for " + data.RepoName
+	seo.JSONLD = newJSONLD(map[string]any{
+		"@context": "https://schema.org",
+		"@type":    "CollectionPage",
+		"url":      seo.Canonical,
+		"name":     seo.Title,
+		"about": map[string]any{
+			"@type": "SoftwareSourceCode",
+			"name":  data.RepoName,
+		},
+	})
+	data.SEO = seo
+
 	renderTemplate(w, "repo.html", data)
 }
 
@@ -1898,19 +2059,75 @@ func getContributorLibraries(email string) []TechnologyMeta {
 
 func handleLibrariesCatalogHTML(w http.ResponseWriter, r *http.Request) {
 	groups := getLibrariesCatalog()
-	renderTemplate(w, "libraries.html", groups)
+
+	total := 0
+	for _, g := range groups {
+		total += len(g.Items)
+	}
+
+	base := getPublicBaseURL(r)
+	seo := newSEO(base, "/libraries",
+		"Library catalog — every framework Sourcerer recognizes | "+siteName,
+		truncateDescription(fmt.Sprintf(
+			"The %s Sourcerer detects in source code, across %s. Open one to see who has written the most with it.",
+			plural(total, "library"), plural(len(groups), "category")), 200))
+	seo.JSONLD = newJSONLD(map[string]any{
+		"@context":      "https://schema.org",
+		"@type":         "CollectionPage",
+		"url":           seo.Canonical,
+		"name":          seo.Title,
+		"numberOfItems": total,
+		"isPartOf":      map[string]any{"@type": "WebSite", "name": siteName, "url": base},
+		"inLanguage":    "en",
+		"dateModified":  time.Now().UTC().Format("2006-01-02"),
+		"mainContentOfPage": map[string]any{
+			"@type": "WebPageElement",
+			"name":  "Recognized libraries",
+		},
+	})
+
+	data := struct {
+		Groups []LibraryCategoryGroup
+		SEO    SEOMeta
+	}{Groups: groups, SEO: seo}
+
+	renderTemplate(w, "libraries.html", data)
 }
 
 func handleLibraryDetailHTML(w http.ResponseWriter, r *http.Request) {
 	techID := chi.URLParam(r, "tech")
 	tech, contributors := getLibraryDetail(techID)
 
+	base := getPublicBaseURL(r)
+	seo := newSEO(base, "/libraries/"+techID, siteName+" library", "")
+	if tech != nil {
+		seo = newSEO(base, "/libraries/"+tech.ID,
+			tech.Name+" contributors — who writes the most "+tech.Lang+" with it | "+siteName,
+			truncateDescription(fmt.Sprintf("%s %s Ranked by lines written across every repository Sourcerer has indexed.",
+				tech.Name+".", tech.Description), 200))
+		seo.ImageAlt = "Top " + tech.Name + " contributors on Sourcerer"
+		seo.JSONLD = newJSONLD(map[string]any{
+			"@context": "https://schema.org",
+			"@type":    "CollectionPage",
+			"url":      seo.Canonical,
+			"name":     seo.Title,
+			"about": map[string]any{
+				"@type":               "SoftwareSourceCode",
+				"name":                tech.Name,
+				"description":         tech.Description,
+				"programmingLanguage": tech.Lang,
+			},
+		})
+	}
+
 	data := struct {
 		Library      *TechnologyMeta
 		Contributors []ContributorStat
+		SEO          SEOMeta
 	}{
 		Library:      tech,
 		Contributors: contributors,
+		SEO:          seo,
 	}
 
 	renderTemplate(w, "library_detail.html", data)

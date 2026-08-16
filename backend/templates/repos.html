@@ -1,33 +1,32 @@
-<div class="card-header-row">
-    <h2>&#128193; Repositories</h2>
-    <span class="card-tag">INDEXED</span>
+<div class="panel-head">
+    <h2 class="panel-title">Repositories</h2>
+    <span class="eyebrow">Indexed</span>
 </div>
 
 {{if not .}}
-    <div class="empty-state">
-        <div class="empty-icon">&#128193;</div>
-        <p>No repositories analyzed yet.</p>
-        <span style="font-size: 0.8rem; color: var(--text-dim);">Repositories will appear automatically as they are processed.</span>
+    <div class="empty">
+        <p class="empty-title">No repositories analyzed yet</p>
+        <p class="empty-hint">Repositories appear here as the worker finishes cloning and reading them.</p>
     </div>
 {{else}}
-    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.65rem; overflow-y: auto; max-height: 200px; padding-right: 0.25rem;">
+    <ul class="rows rows--scroll">
         {{range .}}
-        <li style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); padding: 0.7rem 0.95rem; border-radius: var(--radius-md); transition: var(--transition-smooth); gap: 0.75rem;">
-            <div style="min-width: 0; display: flex; flex-direction: column; gap: 0.2rem;">
-                <span style="font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    {{.Rehash}}
-                </span>
-                <div style="display: flex; align-items: center; gap: 0.65rem; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">
+        <li class="row">
+            <div class="row-main">
+                <span class="row-title">{{.Rehash}}</span>
+                <span class="row-meta">
                     <span>{{.CommitCount}} commits</span>
-                    <span>&bull;</span>
-                    <span style="color: var(--accent-emerald);">+{{.LinesAdded}}</span>
-                    <span style="color: var(--accent-rose);">-{{.LinesDeleted}}</span>
-                </div>
+                    <span class="is-add">+{{.LinesAdded}}</span>
+                    <span class="is-del">&minus;{{.LinesDeleted}}</span>
+                </span>
+                <span class="microbar" aria-hidden="true">
+                    <span class="is-add" style="width: {{pctOf .LinesAdded .LinesDeleted}}%"></span>
+                    <span class="is-del" style="width: {{pctOf .LinesDeleted .LinesAdded}}%"></span>
+                </span>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-                <a href="/r/{{.Rehash}}" class="btn btn-outline" style="min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.725rem; font-weight: 700; border-radius: var(--radius-sm);" title="View Contributor Hall of Fame" target="_blank">
-                    &#127775; Hall of Fame
-                </a>
+            <div class="row-side">
+                <a href="/r/{{.Rehash}}" class="btn btn--sm"
+                   title="Contributor hall of fame for this repository">Hall of fame</a>
             </div>
         </li>
         {{end}}

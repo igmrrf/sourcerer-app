@@ -3,724 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sourcerer — Engineering Intelligence Dashboard</title>
-    <meta name="description" content="Visualizing engineering impact, code habits, and developer intelligence across repositories.">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <!-- HTMX -->
+    <title>Overview — Sourcerer</title>
+    <meta name="description" content="Your commits, languages, habits and repositories, read straight from git history.">
+    {{template "assets"}}
     <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
-    <style>
-        :root {
-            /* Palette: Deep Violet & Electric Purple Cyber-Intelligence */
-            --bg-base: #090514;
-            --bg-surface: #120d24;
-            --bg-surface-raised: #1a1336;
-            --bg-surface-hover: #241b4a;
-            --bg-glass: rgba(18, 13, 36, 0.78);
-            
-            --border-subtle: rgba(139, 92, 246, 0.16);
-            --border-card: rgba(139, 92, 246, 0.24);
-            --border-hover: rgba(168, 85, 247, 0.45);
-            --border-active: #8b5cf6;
-
-            --primary: #8b5cf6;
-            --primary-light: #a855f7;
-            --primary-dark: #6d28d9;
-            --primary-glow: rgba(139, 92, 246, 0.28);
-            --primary-glow-strong: rgba(168, 85, 247, 0.4);
-
-            --accent-emerald: #10b981;
-            --accent-emerald-glow: rgba(16, 185, 129, 0.18);
-            --accent-rose: #f43f5e;
-            --accent-rose-glow: rgba(244, 63, 94, 0.18);
-            --accent-amber: #f59e0b;
-            --accent-cyan: #06b6d4;
-
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            --text-dim: #64748b;
-
-            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-            --radius-xs: 4px;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 18px;
-            --radius-full: 9999px;
-
-            --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
-            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(139, 92, 246, 0.15);
-            --shadow-glow: 0 0 25px -3px var(--primary-glow);
-            
-            --transition-smooth: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-sans);
-            background-color: var(--bg-base);
-            color: var(--text-primary);
-            line-height: 1.6;
-            min-height: 100vh;
-            background-image: 
-                radial-gradient(ellipse 80% 50% at 50% -15%, rgba(139, 92, 246, 0.22), transparent 70%),
-                radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1), transparent 50%),
-                radial-gradient(circle at 10% 40%, rgba(168, 85, 247, 0.08), transparent 40%);
-            background-attachment: fixed;
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .container {
-            max-width: 1320px;
-            margin: 0 auto;
-            padding: 2.25rem 1.5rem 4rem;
-        }
-
-        /* Top Navigation & App Bar */
-        header {
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 1.25rem 1.75rem;
-            margin-bottom: 2.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1.25rem;
-            box-shadow: var(--shadow-card);
-            position: relative;
-        }
-
-        header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 10%;
-            right: 10%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.6), transparent);
-        }
-
-        .brand-section {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logo-icon-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .logo-icon {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.35rem;
-            color: #ffffff;
-            box-shadow: 0 4px 15px var(--primary-glow);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: var(--transition-smooth);
-        }
-
-        .logo-icon-wrapper:hover .logo-icon {
-            transform: translateY(-2px) scale(1.04);
-            box-shadow: 0 8px 25px var(--primary-glow-strong);
-        }
-
-        .brand-titles h1 {
-            font-size: 1.45rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .brand-badge {
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            background: rgba(139, 92, 246, 0.2);
-            color: var(--primary-light);
-            border: 1px solid rgba(139, 92, 246, 0.35);
-            padding: 0.15rem 0.5rem;
-            border-radius: var(--radius-full);
-        }
-
-        .brand-titles p {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .controls-section {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-        }
-
-        .user-chip {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            background: var(--bg-surface-raised);
-            border: 1px solid var(--border-subtle);
-            padding: 0.45rem 0.95rem;
-            border-radius: var(--radius-full);
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            box-shadow: var(--shadow-subtle);
-        }
-
-        .user-avatar-badge {
-            width: 26px;
-            height: 26px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            text-transform: uppercase;
-        }
-
-        .select-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .select-wrapper select {
-            appearance: none;
-            -webkit-appearance: none;
-            background-color: var(--bg-surface-raised);
-            color: var(--text-primary);
-            border: 1px solid var(--border-card);
-            padding: 0.55rem 2.25rem 0.55rem 1rem;
-            border-radius: var(--radius-md);
-            font-family: var(--font-sans);
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            outline: none;
-            transition: var(--transition-smooth);
-            min-height: 42px;
-        }
-
-        .select-wrapper select:hover {
-            border-color: var(--border-hover);
-            background-color: var(--bg-surface-hover);
-        }
-
-        .select-wrapper select:focus {
-            border-color: var(--border-active);
-            box-shadow: 0 0 0 3px var(--primary-glow);
-        }
-
-        .select-wrapper::after {
-            content: '▾';
-            position: absolute;
-            right: 0.9rem;
-            color: var(--primary-light);
-            font-size: 0.9rem;
-            pointer-events: none;
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: #ffffff;
-            padding: 0.55rem 1.25rem;
-            border-radius: var(--radius-md);
-            text-decoration: none;
-            font-family: var(--font-sans);
-            font-size: 0.875rem;
-            font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            min-height: 42px;
-            box-shadow: 0 4px 14px var(--primary-glow);
-        }
-
-        .btn:hover {
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px var(--primary-glow-strong);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-outline {
-            background: var(--bg-surface-raised);
-            color: var(--text-secondary);
-            border: 1px solid var(--border-card);
-            box-shadow: none;
-        }
-
-        .btn-outline:hover {
-            background: var(--bg-surface-hover);
-            color: var(--text-primary);
-            border-color: var(--border-hover);
-            transform: translateY(-1px);
-        }
-
-        .btn-github {
-            background: #24292e;
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-        .btn-github:hover {
-            background: #2f363d;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        }
-
-        /* Hero Highlights Bar */
-        .hero-banner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1rem;
-            background: linear-gradient(90deg, rgba(139, 92, 246, 0.12), rgba(124, 58, 237, 0.05));
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 0.85rem 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .hero-banner-text {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
-
-        .hero-pulse-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--accent-emerald);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--accent-emerald);
-            animation: pulse-dot 2s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
-
-        .hero-banner-link {
-            color: var(--primary-light);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.85rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            transition: var(--transition-smooth);
-        }
-
-        .hero-banner-link:hover {
-            color: #ffffff;
-            transform: translateX(2px);
-        }
-
-        /* Dashboard Grid */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.75rem;
-        }
-
-        .card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 1.85rem;
-            box-shadow: var(--shadow-card);
-            transition: var(--transition-smooth);
-            display: flex;
-            flex-direction: column;
-            min-height: 310px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
-            transition: var(--transition-smooth);
-        }
-
-        .card:hover {
-            border-color: var(--border-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.7), 0 0 20px -3px var(--primary-glow);
-        }
-
-        .card:hover::before {
-            background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
-        }
-
-        .card-header-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.5rem;
-        }
-
-        .card h2 {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .card-tag {
-            font-family: var(--font-mono);
-            font-size: 0.725rem;
-            color: var(--primary-light);
-            background: rgba(139, 92, 246, 0.12);
-            border: 1px solid var(--border-subtle);
-            padding: 0.2rem 0.55rem;
-            border-radius: var(--radius-sm);
-        }
-
-        /* Loading Skeleton */
-        .loading-skeleton {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin: auto 0;
-            width: 100%;
-        }
-
-        .skeleton-line {
-            height: 18px;
-            background: linear-gradient(90deg, var(--bg-surface-raised) 25%, var(--bg-surface-hover) 50%, var(--bg-surface-raised) 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.8s infinite;
-            border-radius: var(--radius-sm);
-        }
-
-        .skeleton-line.short { width: 45%; }
-        .skeleton-line.medium { width: 75%; }
-        .skeleton-hero { height: 52px; width: 60%; }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* Empty State */
-        .empty-state {
-            color: var(--text-muted);
-            text-align: center;
-            padding: 2.5rem 1rem;
-            margin: auto 0;
-            font-size: 0.925rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .empty-icon {
-            font-size: 2.25rem;
-            opacity: 0.6;
-            filter: drop-shadow(0 0 10px var(--primary-glow));
-        }
-
-        /* Footer & Quick Hub */
-        footer {
-            margin-top: 3.5rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border-subtle);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1rem;
-            color: var(--text-dim);
-            font-size: 0.85rem;
-        }
-
-        .footer-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--text-secondary);
-            font-weight: 600;
-        }
-
-        .footer-links {
-            display: flex;
-            align-items: center;
-            gap: 1.25rem;
-        }
-
-        .footer-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            transition: var(--transition-smooth);
-        }
-
-        .footer-links a:hover {
-            color: var(--primary-light);
-        }
-
-        /* Mobile & Responsive Rules */
-        @media (max-width: 1024px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 1.25rem 1rem 3rem;
-            }
-
-            header {
-                padding: 1.25rem 1.25rem;
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1.25rem;
-            }
-
-            .brand-section {
-                justify-content: flex-start;
-            }
-
-            .controls-section {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .user-chip {
-                justify-content: center;
-            }
-
-            .select-wrapper select {
-                width: 100%;
-            }
-
-            .btn {
-                width: 100%;
-            }
-
-            .card {
-                padding: 1.4rem;
-                min-height: auto;
-            }
-
-            footer {
-                flex-direction: column;
-                text-align: center;
-                gap: 1.25rem;
-            }
-
-            .footer-links {
-                justify-content: center;
-            }
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Top App Bar -->
-        <header>
-            <div class="brand-section">
-                <div class="logo-icon-wrapper">
-                    <div class="logo-icon">&#9889;</div>
-                </div>
-                <div class="brand-titles">
-                    <h1>
-                        Sourcerer
-                        <span class="brand-badge">Intelligence</span>
-                    </h1>
-                    <p>Developer Analytics &amp; Visual Engineering Profiler</p>
-                </div>
-            </div>
+    <div class="app-shell">
+        <aside class="rail">
+            <a href="/" class="rail-brand">
+                {{template "logomark"}}
+                <span class="wordmark">Sourcerer</span>
+            </a>
 
-            <div class="controls-section">
-                {{if .User}}
-                <div class="user-chip">
-                    <span class="user-avatar-badge">{{slice .User.Name 0 1}}</span>
-                    <span>{{.User.Name}}</span>
-                </div>
-                <a href="/auth/github/login" class="btn btn-outline" title="Re-sync repositories from GitHub">&#8635; Sync Repos</a>
-                <a href="/p/{{.User.PublicProfileID}}" class="btn btn-outline" target="_blank">&#128100; Public Profile</a>
-                <a href="/auth/logout" class="btn btn-outline">Logout</a>
-                {{else}}
-                <a href="/auth/github/login" class="btn btn-github">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 2px;">
-                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-                    </svg>
-                    Connect with GitHub
+            <nav class="rail-group" aria-label="Dashboard">
+                <span class="rail-label">Dashboard</span>
+                <a href="/" class="rail-link is-active" aria-current="page">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                    Overview
                 </a>
-                {{end}}
+                <a href="/libraries" class="rail-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 5-9-5v-7l9-5z"/><path d="M3.3 7.8 12 12.6l8.7-4.8"/><path d="M12 12.6V20"/></svg>
+                    Libraries
+                </a>
+            </nav>
 
-                <a href="/libraries" class="btn btn-outline" target="_blank">&#128230; Awesome Libraries</a>
-                <div class="select-wrapper">
-                    <select name="email" id="email-select" aria-label="Select Contributor">
-                        <option value="">All Contributors</option>
-                        {{if .User}}
-                        <option value="{{.User.Email}}" selected>{{.User.Name}} (You)</option>
-                        {{end}}
-                        {{range .Authors}}
-                        {{if and $.User (eq $.User.Email .Email)}}
-                        <!-- already added as primary -->
-                        {{else}}
-                        <option value="{{.Email}}">{{if .Name}}{{.Name}} ({{.Email}}){{else}}{{.Email}}{{end}}</option>
-                        {{end}}
-                        {{end}}
-                    </select>
-                </div>
-            </div>
-        </header>
-
-        <!-- Live Intelligence Banner -->
-        <div class="hero-banner">
-            <div class="hero-banner-text">
-                <span class="hero-pulse-dot"></span>
-                <span>Continuous code indexing active &bull; Auto-refreshing metrics every 30 seconds</span>
-            </div>
             {{if .User}}
-            <a href="/p/{{.User.PublicProfileID}}" class="hero-banner-link">View Shareable Profile &rarr;</a>
+            <nav class="rail-group" aria-label="Share">
+                <span class="rail-label">Share</span>
+                <a href="/p/{{.User.PublicProfileID}}" class="rail-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+                    Public profile
+                </a>
+                <a href="/badge/{{.User.PublicProfileID}}.svg" class="rail-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4.5 4L9 16"/><path d="m15 8 4.5 4L15 16"/></svg>
+                    README badge
+                </a>
+            </nav>
             {{end}}
-        </div>
 
-        <!-- Dynamic 2x2 HTMX Dashboard Grid -->
-        <main class="dashboard-grid">
-            <!-- 1. Overall Commits & Velocity Stats -->
-            <section class="card" 
-                 hx-get="/dashboard/stats" 
-                 hx-include="#email-select" 
-                 hx-trigger="load, change from:#email-select, every 30s" 
-                 hx-swap="innerHTML">
-                <div class="card-header-row">
-                    <h2>&#128200; Overall Velocity</h2>
-                    <span class="card-tag">TELEMETRY</span>
-                </div>
-                <div class="loading-skeleton">
-                    <div class="skeleton-line skeleton-hero"></div>
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line medium"></div>
-                </div>
-            </section>
-
-            <!-- 2. Technology & Language Breakdown -->
-            <section class="card" 
-                 hx-get="/dashboard/languages" 
-                 hx-include="#email-select" 
-                 hx-trigger="load, change from:#email-select, every 30s" 
-                 hx-swap="innerHTML">
-                <div class="card-header-row">
-                    <h2>&#9881; Technology Stack</h2>
-                    <span class="card-tag">AST ANALYSIS</span>
-                </div>
-                <div class="loading-skeleton">
-                    <div class="skeleton-line medium"></div>
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line medium"></div>
-                </div>
-            </section>
-
-            <!-- 3. Coding Habits & Behavioral Facts -->
-            <section class="card" 
-                 hx-get="/dashboard/facts" 
-                 hx-include="#email-select" 
-                 hx-trigger="load, change from:#email-select, every 30s" 
-                 hx-swap="innerHTML">
-                <div class="card-header-row">
-                    <h2>&#9889; Coding Habits &amp; Style</h2>
-                    <span class="card-tag">BEHAVIOR</span>
-                </div>
-                <div class="loading-skeleton">
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line medium"></div>
-                    <div class="skeleton-line short"></div>
-                </div>
-            </section>
-
-            <!-- 4. Analyzed Repositories -->
-            <section class="card" 
-                 hx-get="/dashboard/repos" 
-                 hx-include="#email-select" 
-                 hx-trigger="load, change from:#email-select, every 30s" 
-                 hx-swap="innerHTML">
-                <div class="card-header-row">
-                    <h2>&#128193; Repositories</h2>
-                    <span class="card-tag">INDEXED</span>
-                </div>
-                <div class="loading-skeleton">
-                    <div class="skeleton-line medium"></div>
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line medium"></div>
-                </div>
-            </section>
-        </main>
-
-        <!-- Footer -->
-        <footer>
-            <div class="footer-brand">
-                <span>&#9889; Sourcerer Platform</span>
-                <span>&bull;</span>
-                <span>Automated Developer Intelligence</span>
-            </div>
-            <div class="footer-links">
+            <div class="rail-foot">
                 {{if .User}}
-                <a href="/p/{{.User.PublicProfileID}}">Public Portfolio</a>
-                <a href="/badge/{{.User.PublicProfileID}}.svg" target="_blank">SVG Badge</a>
+                <a href="/auth/logout">Log out</a>
+                {{else}}
+                <a href="/auth/github/login">Connect with GitHub</a>
                 {{end}}
-                <a href="/healthz" target="_blank">System Health</a>
+                <a href="/healthz">System health</a>
             </div>
-        </footer>
+        </aside>
+
+        <div>
+            <header class="topbar">
+                <div class="topbar-heading">
+                    <h1>Overview</h1>
+                    <p>Read from git history &middot; refreshes every 30 seconds</p>
+                </div>
+
+                <div class="topbar-tools">
+                    <div class="select">
+                        <select name="email" id="email-select" aria-label="Contributor">
+                            <option value="">All contributors</option>
+                            {{if .User}}
+                            <option value="{{.User.Email}}" selected>{{.User.Name}} (you)</option>
+                            {{end}}
+                            {{range .Authors}}
+                            {{if and $.User (eq $.User.Email .Email)}}
+                            {{else}}
+                            <option value="{{.Email}}">{{if .Name}}{{.Name}} ({{.Email}}){{else}}{{.Email}}{{end}}</option>
+                            {{end}}
+                            {{end}}
+                        </select>
+                    </div>
+
+                    {{if .User}}
+                    <a href="/auth/github/login" class="btn" title="Re-read your repositories from GitHub">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5A8 8 0 0 0 6.3 6.3L4 8.5"/><path d="M4 4.5v4h4"/><path d="M4 12.5a8 8 0 0 0 13.7 5.2L20 15.5"/><path d="M20 19.5v-4h-4"/></svg>
+                        Sync repositories
+                    </a>
+                    <span class="chip">
+                        <span class="avatar">{{slice .User.Name 0 1}}</span>
+                        {{.User.Name}}
+                    </span>
+                    {{else}}
+                    <a href="/auth/github/login" class="btn btn--github">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                        Connect with GitHub
+                    </a>
+                    {{end}}
+                </div>
+            </header>
+
+            <main class="canvas">
+                <div class="grid">
+                    <!-- Commit volume and the diff it produced -->
+                    <section class="panel col-12"
+                             hx-get="/dashboard/stats"
+                             hx-include="#email-select"
+                             hx-trigger="load, change from:#email-select, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Commit volume</h2>
+                            <span class="eyebrow">All indexed repositories</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--hero"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                        </div>
+                    </section>
+
+                    <section class="panel col-6"
+                             hx-get="/dashboard/languages"
+                             hx-include="#email-select"
+                             hx-trigger="load, change from:#email-select, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Languages</h2>
+                            <span class="eyebrow">By lines written</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--medium"></div>
+                            <div class="sk-line sk-line--short"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                        </div>
+                    </section>
+
+                    <section class="panel col-6"
+                             hx-get="/dashboard/facts"
+                             hx-include="#email-select"
+                             hx-trigger="load, change from:#email-select, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Coding habits</h2>
+                            <span class="eyebrow">From commit patterns</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--short"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                            <div class="sk-line sk-line--short"></div>
+                        </div>
+                    </section>
+
+                    <section class="panel col-6"
+                             hx-get="/dashboard/repos"
+                             hx-include="#email-select"
+                             hx-trigger="load, change from:#email-select, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Repositories</h2>
+                            <span class="eyebrow">Indexed</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--medium"></div>
+                            <div class="sk-line sk-line--short"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                        </div>
+                    </section>
+
+                    <section class="panel col-6"
+                             hx-get="/dashboard/libraries"
+                             hx-include="#email-select"
+                             hx-trigger="load, change from:#email-select, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Libraries</h2>
+                            <span class="eyebrow">Recognized imports</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--short"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                            <div class="sk-line sk-line--short"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <footer class="foot">
+                    <span>Sourcerer &middot; engineering profiles from git history</span>
+                    <div class="foot-links">
+                        {{if .User}}
+                        <a href="/p/{{.User.PublicProfileID}}">Public profile</a>
+                        <a href="/badge/{{.User.PublicProfileID}}.svg">SVG badge</a>
+                        {{end}}
+                        <a href="/libraries">Libraries</a>
+                        <a href="/healthz">System health</a>
+                    </div>
+                </footer>
+            </main>
+        </div>
     </div>
 </body>
 </html>

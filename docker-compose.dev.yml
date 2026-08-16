@@ -15,9 +15,11 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
-      # Enables template hot-reload: the binary looks for templates/*.html in
-      # its working directory and falls back to the embedded copies otherwise.
+      # Enables template and stylesheet hot-reload: the binary looks for
+      # templates/*.html and static/ in its working directory and falls back to
+      # the embedded copies otherwise.
       - ./backend/templates:/app/templates:ro
+      - ./backend/static:/app/static:ro
 
   # The TLS proxy is not part of the HTTP dev loop. Parking it behind a profile
   # keeps `up` from starting it without having to maintain a second file.

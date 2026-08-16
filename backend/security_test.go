@@ -344,6 +344,61 @@ func TestTemplatesRender(t *testing.T) {
 			},
 			want: []string{"/p/abc123", "/badge/abc123.svg"},
 		},
+		{
+			name: "libraries.html",
+			data: []LibraryCategoryGroup{{
+				Category: "Web frameworks",
+				Items:    []TechnologyMeta{{ID: "go.chi", Name: "Chi", Lang: "Go", Description: "HTTP router", ImportTokens: []string{"go-chi/chi"}}},
+			}},
+			want: []string{"/libraries/go.chi", "go-chi/chi", "Web frameworks"},
+		},
+		{
+			name: "library_detail.html",
+			data: struct {
+				Library      *TechnologyMeta
+				Contributors []ContributorStat
+			}{
+				Library:      &TechnologyMeta{ID: "go.chi", Name: "Chi", Lang: "Go", Category: "Web frameworks", Description: "HTTP router", ImportTokens: []string{"go-chi/chi"}},
+				Contributors: []ContributorStat{contributor},
+			},
+			want: []string{"/api/libraries/go.chi", "/p/abc123", "Chi"},
+		},
+		{
+			name: "stats.html",
+			data: struct {
+				TotalCommits int
+				LinesAdded   int
+				LinesDeleted int
+			}{TotalCommits: 42, LinesAdded: 300, LinesDeleted: 100},
+			want: []string{"42", "+300", "net <b>200</b>", "75.00%"},
+		},
+		{
+			name: "languages.html",
+			data: []LangStat{{Tech: "Go", Lines: 10, Percentage: 100}},
+			want: []string{"Go", "100%", "10 lines"},
+		},
+		{
+			name: "repos.html",
+			data: []RepoInfo{{Rehash: "example/repo", CommitCount: 7, LinesAdded: 90, LinesDeleted: 10}},
+			want: []string{"example/repo", "7 commits", "+90", "/r/example/repo"},
+		},
+		{
+			name: "facts.html",
+			data: FactsData{HasData: true, WorkStyle: "Night owl", WorkStyleIcon: "N", WorkStyleDesc: "Commits after hours", AvgCommitSize: "38"},
+			want: []string{"Night owl", "Commits after hours", "38 lines"},
+		},
+		{
+			name: "libraries_partial.html",
+			data: []TechnologyMeta{{ID: "go.chi", Name: "Chi", Category: "Web frameworks", Lines: 120}},
+			want: []string{"/libraries/go.chi", "+120 lines"},
+		},
+	}
+
+	// Full pages must link the fingerprinted stylesheet; partials are swapped
+	// into an existing page and must not.
+	fullPages := map[string]bool{
+		"profile.html": true, "repo.html": true, "index.html": true,
+		"libraries.html": true, "library_detail.html": true,
 	}
 
 	for _, tc := range cases {
@@ -363,5 +418,31 @@ func TestTemplatesRender(t *testing.T) {
 		if strings.Contains(out, "alice@example.com") {
 			t.Fatalf("%s rendered a raw email address", tc.name)
 		}
+		wantSheet := "/static/app.css?v=" + assetVersion
+		if fullPages[tc.name] && !strings.Contains(out, wantSheet) {
+			t.Fatalf("%s does not link %s", tc.name, wantSheet)
+		}
+		if !fullPages[tc.name] && strings.Contains(out, "<link") {
+			t.Fatalf("%s is a partial but emits a <link> tag", tc.name)
+		}
+	}
+}
+
+// The stylesheet ships embedded, so a missing or renamed file must fail the
+// build rather than 404 in production.
+func TestStaticStylesheetIsServed(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/static/app.css?v="+assetVersion, nil)
+	rec := httptest.NewRecorder()
+
+	staticHandler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stylesheet request returned %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "--accent") {
+		t.Fatal("stylesheet response does not contain the design tokens")
+	}
+	if assetVersion == "dev" {
+		t.Fatal("asset fingerprint fell back to \"dev\"; the embedded stylesheet was not found")
 	}
 }

@@ -1,0 +1,23 @@
+{{/*
+Shared page furniture. Parsed alongside every other template, so any page can
+pull these in with {{template "assets"}} / {{template "logomark"}}.
+*/}}
+
+{{define "assets"}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{asset "app.css"}}">
+{{end}}
+
+{{define "logomark"}}
+<span class="mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2.6"></circle>
+        <circle cx="12" cy="19" r="2.6"></circle>
+        <circle cx="19" cy="12" r="2.6"></circle>
+        <path d="M12 7.6v8.8"></path>
+        <path d="M12 12h4.4"></path>
+    </svg>
+</span>
+{{end}}

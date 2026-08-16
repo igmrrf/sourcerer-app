@@ -3,410 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Library.Name}} — Library Intelligence &amp; Leaderboard</title>
-    <meta name="description" content="Library analytics, usage breakdown, and top contributor leaderboard for {{.Library.Name}} on Sourcerer.">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            /* Palette: Deep Violet & Electric Purple Cyber-Intelligence */
-            --bg-base: #090514;
-            --bg-surface: #120d24;
-            --bg-surface-raised: #1a1336;
-            --bg-surface-hover: #241b4a;
-            --bg-glass: rgba(18, 13, 36, 0.82);
-            
-            --border-subtle: rgba(139, 92, 246, 0.16);
-            --border-card: rgba(139, 92, 246, 0.24);
-            --border-hover: rgba(168, 85, 247, 0.45);
-            --border-active: #8b5cf6;
-
-            --primary: #8b5cf6;
-            --primary-light: #a855f7;
-            --primary-dark: #6d28d9;
-            --primary-glow: rgba(139, 92, 246, 0.28);
-            --primary-glow-strong: rgba(168, 85, 247, 0.4);
-
-            --accent-emerald: #10b981;
-            --accent-cyan: #06b6d4;
-            --accent-gold: #f59e0b;
-            --accent-rose: #f43f5e;
-
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            --text-dim: #64748b;
-
-            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-            --radius-xs: 4px;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 18px;
-            --radius-full: 9999px;
-
-            --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
-            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(139, 92, 246, 0.15);
-            --shadow-glow: 0 0 25px -3px var(--primary-glow);
-            
-            --transition-smooth: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-sans);
-            background-color: var(--bg-base);
-            color: var(--text-primary);
-            line-height: 1.6;
-            min-height: 100vh;
-            background-image: 
-                radial-gradient(ellipse 80% 50% at 50% -15%, rgba(139, 92, 246, 0.22), transparent 70%),
-                radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1), transparent 50%),
-                radial-gradient(circle at 10% 40%, rgba(168, 85, 247, 0.08), transparent 40%);
-            background-attachment: fixed;
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .container {
-            max-width: 1140px;
-            margin: 0 auto;
-            padding: 2.25rem 1.5rem 4.5rem;
-        }
-
-        nav {
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 1rem 1.5rem;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: var(--shadow-card);
-        }
-
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            color: var(--text-primary);
-            font-weight: 800;
-            font-size: 1.2rem;
-        }
-
-        .nav-logo {
-            width: 34px;
-            height: 34px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.05rem;
-            color: #ffffff;
-            box-shadow: 0 2px 10px var(--primary-glow);
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: #ffffff;
-            padding: 0.5rem 1.15rem;
-            border-radius: var(--radius-md);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            min-height: 40px;
-        }
-
-        .btn-outline {
-            background: var(--bg-surface-raised);
-            color: var(--text-secondary);
-            border: 1px solid var(--border-card);
-        }
-
-        .btn-outline:hover {
-            background: var(--bg-surface-hover);
-            color: var(--text-primary);
-            border-color: var(--border-hover);
-        }
-
-        .hero-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 2.25rem;
-            margin-bottom: 2.25rem;
-            box-shadow: var(--shadow-card);
-            position: relative;
-        }
-
-        .hero-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary-light), var(--accent-cyan), var(--accent-emerald));
-        }
-
-        .hero-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .hero-title-group h1 {
-            font-size: 2.2rem;
-            font-weight: 800;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 0.4rem;
-        }
-
-        .pill {
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 0.25rem 0.75rem;
-            border-radius: var(--radius-full);
-            text-transform: uppercase;
-        }
-
-        .pill-lang {
-            background: rgba(6, 182, 212, 0.15);
-            color: var(--accent-cyan);
-            border: 1px solid rgba(6, 182, 212, 0.3);
-        }
-
-        .pill-cat {
-            background: rgba(139, 92, 246, 0.15);
-            color: var(--primary-light);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-        }
-
-        .hero-desc {
-            color: var(--text-secondary);
-            font-size: 1.05rem;
-            margin-bottom: 1.5rem;
-            max-width: 800px;
-        }
-
-        .tokens-box {
-            background: var(--bg-surface-raised);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 1rem;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .token-tag {
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            background: var(--bg-base);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-secondary);
-            padding: 0.2rem 0.6rem;
-            border-radius: var(--radius-xs);
-        }
-
-        /* Leaderboard Section */
-        .section-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 2rem;
-            box-shadow: var(--shadow-card);
-            margin-bottom: 2rem;
-        }
-
-        .section-title {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .leaderboard-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 0.85rem;
-        }
-
-        .leaderboard-item {
-            background: var(--bg-surface-raised);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 0.9rem 1.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            text-decoration: none;
-            color: inherit;
-            transition: var(--transition-smooth);
-        }
-
-        .leaderboard-item:hover {
-            border-color: var(--border-hover);
-            background: var(--bg-surface-hover);
-            transform: translateX(4px);
-        }
-
-        .rank-badge {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 0.85rem;
-            font-family: var(--font-mono);
-        }
-
-        .rank-1 { background: rgba(245, 158, 11, 0.2); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
-        .rank-2 { background: rgba(139, 92, 246, 0.2); color: var(--primary-light); border: 1px solid var(--primary-light); }
-        .rank-3 { background: rgba(6, 182, 212, 0.2); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
-        .rank-other { background: var(--bg-base); color: var(--text-muted); border: 1px solid var(--border-subtle); }
-
-        .contributor-meta {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            min-width: 0;
-        }
-
-        .user-name {
-            font-weight: 700;
-            color: var(--text-primary);
-            display: block;
-        }
-
-        .user-email {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            font-family: var(--font-mono);
-        }
-
-        .metric-pill {
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--accent-emerald);
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.25);
-            padding: 0.3rem 0.75rem;
-            border-radius: var(--radius-sm);
-        }
-
-        @media (max-width: 768px) {
-            .container { padding: 1.25rem 1rem 3rem; }
-            nav { flex-direction: column; align-items: stretch; gap: 1rem; }
-        }
-    </style>
+    <title>{{.Library.Name}} — Sourcerer</title>
+    <meta name="description" content="{{.Library.Description}}">
+    {{template "assets"}}
 </head>
 <body>
-    <div class="container">
-        <!-- Nav -->
-        <nav>
-            <a href="/" class="nav-brand">
-                <div class="nav-logo">&#9889;</div>
-                <span>Sourcerer</span>
+    <div class="doc-shell">
+        <nav class="doc-nav">
+            <a href="/" class="rail-brand">
+                {{template "logomark"}}
+                <span class="wordmark">Sourcerer</span>
             </a>
-            <div style="display: flex; gap: 0.75rem;">
-                <a href="/libraries" class="btn btn-outline">&larr; All Libraries</a>
-                <a href="/" class="btn btn-outline">Dashboard</a>
+            <div class="doc-nav-actions">
+                <a href="/libraries" class="btn">All libraries</a>
+                <a href="/" class="btn">Dashboard</a>
             </div>
         </nav>
 
-        <!-- Library Header -->
-        <header class="hero-card">
-            <div class="hero-header">
-                <div class="hero-title-group">
-                    <h1>
-                        <span>&#128230;</span>
-                        <span>{{.Library.Name}}</span>
-                    </h1>
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
-                        <span class="pill pill-lang">{{.Library.Lang}}</span>
-                        <span class="pill pill-cat">{{.Library.Category}}</span>
-                    </div>
+        <header class="doc-hero">
+            <div class="doc-hero-meta">
+                <span class="eyebrow">Library</span>
+                <h1>{{.Library.Name}}</h1>
+                <div class="doc-hero-tags">
+                    <span class="tag tag--accent">{{.Library.Lang}}</span>
+                    <span class="tag">{{.Library.Category}}</span>
                 </div>
             </div>
-
-            <p class="hero-desc">{{.Library.Description}}</p>
-
-            {{if .Library.ImportTokens}}
-            <div class="tokens-box">
-                <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-right: 0.5rem;">Detected Tokens:</span>
-                {{range .Library.ImportTokens}}
-                <span class="token-tag">{{.}}</span>
-                {{end}}
+            <div class="doc-hero-actions">
+                <a href="/api/libraries/{{.Library.ID}}" class="btn">JSON</a>
             </div>
-            {{end}}
         </header>
 
-        <!-- Top Contributors Leaderboard -->
-        <section class="section-card">
-            <h2 class="section-title">&#127942; Top Contributors in {{.Library.Name}}</h2>
-            {{if not .Contributors}}
-            <div style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted);">
-                <p>No contributor activity detected for this library in indexed repositories.</p>
-            </div>
-            {{else}}
-            <ul class="leaderboard-list">
-                {{range $i, $c := .Contributors}}
-                <li>
-                    <a href="{{$c.ProfileURL}}" class="leaderboard-item">
-                        <div class="contributor-meta">
-                            <span class="rank-badge {{if eq $i 0}}rank-1{{else if eq $i 1}}rank-2{{else if eq $i 2}}rank-3{{else}}rank-other{{end}}">
-                                {{if eq $i 0}}&#127941;{{else if eq $i 1}}2{{else if eq $i 2}}3{{else}}{{add $i 1}}{{end}}
-                            </span>
-                            <div>
-                                <span class="user-name">{{$c.Name}}</span>
-                                <span class="user-email">{{$c.Email}}</span>
-                            </div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">{{$c.Commits}} commits</span>
-                            <span class="metric-pill">+{{$c.LinesAdded}} lines</span>
-                        </div>
-                    </a>
-                </li>
+        <div class="grid">
+            <section class="panel col-12">
+                <p class="lede">{{.Library.Description}}</p>
+
+                {{if .Library.ImportTokens}}
+                <div class="code-field" style="margin-top: 18px;">
+                    <span class="eyebrow">Imports Sourcerer looks for</span>
+                    <div class="tokens">
+                        {{range .Library.ImportTokens}}
+                        <span class="token">{{.}}</span>
+                        {{end}}
+                    </div>
+                </div>
                 {{end}}
-            </ul>
-            {{end}}
-        </section>
+            </section>
+
+            <section class="panel col-12">
+                <div class="panel-head">
+                    <h2 class="panel-title">Top contributors using {{.Library.Name}}</h2>
+                    <span class="eyebrow">By lines written</span>
+                </div>
+
+                {{if not .Contributors}}
+                <div class="empty">
+                    <p class="empty-title">No activity indexed yet</p>
+                    <p class="empty-hint">Nobody in the indexed repositories has imported {{.Library.Name}} so far.</p>
+                </div>
+                {{else}}
+                <ul class="rows">
+                    {{range $i, $c := .Contributors}}
+                    <li>
+                        <a href="{{$c.ProfileURL}}" class="row" title="View {{$c.Name}}'s profile">
+                            <span class="row-person">
+                                <span class="rank {{if eq $i 0}}rank--1{{else if eq $i 1}}rank--2{{else if eq $i 2}}rank--3{{end}}">{{add $i 1}}</span>
+                                <span class="row-names">
+                                    <span class="row-name">{{$c.Name}}</span>
+                                    <span class="row-sub">{{$c.Email}}</span>
+                                </span>
+                            </span>
+                            <span class="row-side">
+                                <span class="tag">{{$c.Commits}} commits</span>
+                                <span class="tag tag--add">+{{$c.LinesAdded}} lines</span>
+                            </span>
+                        </a>
+                    </li>
+                    {{end}}
+                </ul>
+                {{end}}
+            </section>
+        </div>
+
+        <footer class="foot">
+            <span>Sourcerer &middot; engineering profiles from git history</span>
+            <div class="foot-links">
+                <a href="/libraries">All libraries</a>
+                <a href="/">Dashboard</a>
+            </div>
+        </footer>
     </div>
 </body>
 </html>

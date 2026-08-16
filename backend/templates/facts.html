@@ -1,85 +1,72 @@
-<div class="card-header-row">
-    <h2>&#9889; Coding Habits &amp; Style</h2>
-    <span class="card-tag">BEHAVIOR</span>
+<div class="panel-head">
+    <h2 class="panel-title">Coding habits</h2>
+    <span class="eyebrow">From commit patterns</span>
 </div>
 
 {{if not .HasData}}
-    <div class="empty-state">
-        <div class="empty-icon">&#128161;</div>
-        <p>No coding habit data computed yet.</p>
-        <span style="font-size: 0.8rem; color: var(--text-dim);">Ingest commits to uncover your developer habits &amp; style!</span>
+    <div class="empty">
+        <p class="empty-title">No habits computed yet</p>
+        <p class="empty-hint">Habits are derived from indexed commits — indentation, naming, commit timing and size.</p>
     </div>
 {{else}}
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; overflow-y: auto; max-height: 220px; padding-right: 0.25rem;">
+    <div class="facts">
         {{if .WorkStyle}}
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem; display: flex; align-items: center; gap: 0.75rem; transition: var(--transition-smooth);">
-            <div style="width: 36px; height: 36px; border-radius: var(--radius-sm); background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
-                {{.WorkStyleIcon}}
-            </div>
-            <div style="min-width: 0;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{.WorkStyle}}</span>
-                <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">{{.WorkStyleDesc}}</span>
-            </div>
+        <div class="fact">
+            <span class="fact-icon">{{.WorkStyleIcon}}</span>
+            <span class="fact-body">
+                <span class="fact-title">{{.WorkStyle}}</span>
+                <span class="fact-desc">{{.WorkStyleDesc}}</span>
+            </span>
         </div>
         {{end}}
 
         {{if .IndentHabit}}
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem; display: flex; align-items: center; gap: 0.75rem; transition: var(--transition-smooth);">
-            <div style="width: 36px; height: 36px; border-radius: var(--radius-sm); background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
-                {{.IndentIcon}}
-            </div>
-            <div style="min-width: 0;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{.IndentHabit}}</span>
-                <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">{{.IndentDesc}}</span>
-            </div>
+        <div class="fact">
+            <span class="fact-icon">{{.IndentIcon}}</span>
+            <span class="fact-body">
+                <span class="fact-title">{{.IndentHabit}}</span>
+                <span class="fact-desc">{{.IndentDesc}}</span>
+            </span>
         </div>
         {{end}}
 
         {{if .NamingStyle}}
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem; display: flex; align-items: center; gap: 0.75rem; transition: var(--transition-smooth);">
-            <div style="width: 36px; height: 36px; border-radius: var(--radius-sm); background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
-                {{.NamingIcon}}
-            </div>
-            <div style="min-width: 0;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{.NamingStyle}}</span>
-                <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">{{.NamingDesc}}</span>
-            </div>
+        <div class="fact">
+            <span class="fact-icon">{{.NamingIcon}}</span>
+            <span class="fact-body">
+                <span class="fact-title">{{.NamingStyle}}</span>
+                <span class="fact-desc">{{.NamingDesc}}</span>
+            </span>
         </div>
         {{end}}
 
         {{if .ScheduleStyle}}
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem; display: flex; align-items: center; gap: 0.75rem; transition: var(--transition-smooth);">
-            <div style="width: 36px; height: 36px; border-radius: var(--radius-sm); background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
-                {{.ScheduleIcon}}
-            </div>
-            <div style="min-width: 0;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{.ScheduleStyle}}</span>
-                <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">{{.ScheduleDesc}}</span>
-            </div>
+        <div class="fact">
+            <span class="fact-icon">{{.ScheduleIcon}}</span>
+            <span class="fact-body">
+                <span class="fact-title">{{.ScheduleStyle}}</span>
+                <span class="fact-desc">{{.ScheduleDesc}}</span>
+            </span>
         </div>
         {{end}}
 
         {{if .AvgCommitSize}}
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem; display: flex; align-items: center; gap: 0.75rem; transition: var(--transition-smooth);">
-            <div style="width: 36px; height: 36px; border-radius: var(--radius-sm); background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
-                &#128202;
-            </div>
-            <div style="min-width: 0;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; font-family: var(--font-mono);">{{.AvgCommitSize}} lines</span>
-                <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">Avg Commit Size</span>
-            </div>
+        <div class="fact">
+            <span class="fact-icon">&#128202;</span>
+            <span class="fact-body">
+                <span class="fact-title mono">{{.AvgCommitSize}} lines</span>
+                <span class="fact-desc">Average commit size</span>
+            </span>
         </div>
         {{end}}
 
         {{if .AvgLineLength}}
-        <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem; display: flex; align-items: center; gap: 0.75rem; transition: var(--transition-smooth);">
-            <div style="width: 36px; height: 36px; border-radius: var(--radius-sm); background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
-                &#128221;
-            </div>
-            <div style="min-width: 0;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; font-family: var(--font-mono);">{{.AvgLineLength}} chars</span>
-                <span style="font-size: 0.725rem; color: var(--text-muted); display: block;">Avg Line Length</span>
-            </div>
+        <div class="fact">
+            <span class="fact-icon">&#128221;</span>
+            <span class="fact-body">
+                <span class="fact-title mono">{{.AvgLineLength}} chars</span>
+                <span class="fact-desc">Average line length</span>
+            </span>
         </div>
         {{end}}
     </div>

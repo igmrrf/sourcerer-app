@@ -20,12 +20,16 @@ repository and runs the extractor against it.
 ```bash
 cp .env.example .env   # then fill in the values below
 ./build_cli.sh         # builds cli/build/libs/sourcerer-app.jar
+
+# Option A: Standalone local development stack (includes Dozzle log viewer on :9999)
+docker compose -f docker-compose.local.yml up -d --build
+
+# Option B: Standard dev overlay (HTTP dev loop on :8080)
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-Open <http://localhost:8080>. The dev overlay serves plain HTTP and skips the
-TLS proxy, so your GitHub OAuth app's callback URL should be
-`http://localhost:8080/auth/github/callback`.
+- Web App: <http://localhost:8080> (GitHub OAuth callback URL: `http://localhost:8080/auth/github/callback`)
+- Log Viewer (Dozzle): <http://localhost:9999>
 
 The backend refuses to start without a usable extractor jar, so
 `./build_cli.sh` is not optional. Rebuild the image after rebuilding the jar —
@@ -99,14 +103,43 @@ rather than falling open.
 No config file needs editing between environments — the nginx config is a
 template rendered from these variables at container start.
 
-### Log viewer
+### Log viewer (Dozzle)
 
-Dozzle is behind the `debug` profile and bound to `127.0.0.1` because it mounts
-the Docker socket and has no authentication of its own:
+Dozzle provides a real-time web UI for container logs.
 
-```bash
-docker compose --profile debug up -d dozzle
-ssh -L 9999:localhost:9999 your.host   # then open http://localhost:9999
+#### Local Development Access
+When running locally via `docker-compose.local.yml`:
+- Start the stack: `docker compose -f docker-compose.local.yml up -d`
+- Open your browser directly at: <http://localhost:9999>
+
+#### Production Access Flow (SSH Tunnel)
+In production (`docker-compose.yml`), Dozzle is placed behind the `debug` profile and bound strictly to the server's private loopback interface (`127.0.0.1:9999`) because it mounts the host Docker socket (`/var/run/docker.sock`, root-equivalent) with no default authentication.
+
+To access the Dozzle UI from your local computer:
+
+1. **Start Dozzle on the remote host**:
+   ```bash
+   docker compose --profile debug up -d dozzle
+   ```
+
+2. **Establish an SSH tunnel from your local machine**:
+   ```bash
+   ssh -N -L 9999:localhost:9999 user@your.host
+   ```
+   *(The `-N` flag forwards ports without executing a remote shell).*
+
+3. **Open the Web UI in your local browser**:
+   Navigate to <http://localhost:9999>.
+
+```
+┌────────────────────────────┐
+│ Local Machine (Browser)    │ ───► http://localhost:9999
+└─────────────┬──────────────┘
+              │ (SSH Tunnel)
+              ▼
+┌────────────────────────────┐
+│ Remote Host (127.0.0.1)    │ ───► Dozzle Container (:8080)
+└────────────────────────────┘
 ```
 
 ## Development

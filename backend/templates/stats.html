@@ -1,49 +1,30 @@
-<div class="card-header-row">
-    <h2>&#128200; Overall Velocity</h2>
-    <span class="card-tag">TELEMETRY</span>
+<div class="panel-head">
+    <h2 class="panel-title">Commit volume</h2>
+    <span class="eyebrow">All indexed repositories</span>
 </div>
 
 {{if eq .TotalCommits 0}}
-    <div class="empty-state">
-        <div class="empty-icon">&#128202;</div>
-        <p>No commits ingested yet.</p>
-        <span style="font-size: 0.8rem; color: var(--text-dim);">Connect repositories or run the Sourcerer CLI to populate telemetry.</span>
+    <div class="empty">
+        <p class="empty-title">No commits indexed yet</p>
+        <p class="empty-hint">Sync your repositories, or run the Sourcerer CLI against a local clone, and this fills in.</p>
     </div>
 {{else}}
-    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; gap: 1.25rem;">
-        <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(18, 13, 36, 0.6)); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1.25rem 1.5rem; display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-            <div>
-                <span style="font-family: var(--font-mono); font-size: 2.6rem; font-weight: 800; letter-spacing: -0.04em; color: #ffffff; line-height: 1; display: block; text-shadow: 0 0 20px var(--primary-glow);">
-                    {{.TotalCommits}}
-                </span>
-                <span style="font-size: 0.825rem; font-weight: 600; color: var(--primary-light); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.35rem; display: block;">
-                    Total Commits Indexed
-                </span>
-            </div>
-            <div style="background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.35rem 0.75rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); font-family: var(--font-mono);">
-                Live Activity
-            </div>
+    <div class="ribbon">
+        <div class="ribbon-figure">
+            <span class="ribbon-count">{{.TotalCommits}}</span>
+            <span class="ribbon-unit">Commits indexed</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;">
-            <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: var(--radius-md); padding: 1rem 1.15rem; transition: var(--transition-smooth);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
-                    <span style="font-size: 0.725rem; font-weight: 700; color: var(--accent-emerald); text-transform: uppercase; letter-spacing: 0.05em;">Lines Added</span>
-                    <span style="font-size: 0.85rem; color: var(--accent-emerald);">&#9650;</span>
-                </div>
-                <span style="font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700; color: var(--accent-emerald); display: block;">
-                    +{{.LinesAdded}}
-                </span>
+        <div class="ribbon-track">
+            <div class="ribbon-bar" role="img"
+                 aria-label="{{.LinesAdded}} lines added, {{.LinesDeleted}} lines deleted">
+                <span class="ribbon-seg is-add" style="width: {{pctOf .LinesAdded .LinesDeleted}}%"></span>
+                <span class="ribbon-seg is-del" style="width: {{pctOf .LinesDeleted .LinesAdded}}%"></span>
             </div>
-
-            <div style="background: rgba(244, 63, 94, 0.06); border: 1px solid rgba(244, 63, 94, 0.22); border-radius: var(--radius-md); padding: 1rem 1.15rem; transition: var(--transition-smooth);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
-                    <span style="font-size: 0.725rem; font-weight: 700; color: var(--accent-rose); text-transform: uppercase; letter-spacing: 0.05em;">Lines Deleted</span>
-                    <span style="font-size: 0.85rem; color: var(--accent-rose);">&#9660;</span>
-                </div>
-                <span style="font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700; color: var(--accent-rose); display: block;">
-                    -{{.LinesDeleted}}
-                </span>
+            <div class="ribbon-legend">
+                <span class="is-add"><b>+{{.LinesAdded}}</b> added</span>
+                <span class="is-del"><b>&minus;{{.LinesDeleted}}</b> deleted</span>
+                <span class="is-net">net <b>{{sub .LinesAdded .LinesDeleted}}</b> lines</span>
             </div>
         </div>
     </div>
