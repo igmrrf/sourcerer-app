@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Name}} — Sourcerer Developer Profile</title>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy0fVl/6B3eI" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --surface-bg: #151d2f;
+            --surface-card: #1b253b;
+            --border-color: #273552;
+            --border-subtle: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --accent: #6366f1;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem;
+        }
+
+        /* Nav */
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 1.125rem;
+        }
+
+        .nav-brand span.bolt {
+            color: var(--warning);
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-main);
+            background-color: var(--surface-bg);
+        }
+
+        /* Profile Hero */
+        .profile-hero {
+            background-color: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 1.75rem;
+        }
+
+        .avatar {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: #ffffff;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .profile-meta h1 {
+            font-size: 1.85rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.25rem;
+        }
+
+        .profile-email {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: rgba(59, 130, 246, 0.15);
+            color: var(--primary);
+            padding: 0.25rem 0.65rem;
+            border-radius: 20px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .btn-badge {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.6rem 1.25rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-badge:hover {
+            background-color: var(--border-color);
+        }
+
+        /* Stats Grid */
+        .stats-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background-color: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+        }
+
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.25rem;
+        }
+
+        .summary-card.added .value { color: var(--success); }
+        .summary-card.deleted .value { color: var(--danger); }
+        .summary-card.commits .value { color: var(--primary); }
+        .summary-card.repos .value { color: var(--accent); }
+
+        .summary-card .label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Main Content Layout */
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-card {
+            background-color: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.75rem;
+        }
+
+        .section-card h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+        }
+
+        /* Languages */
+        .lang-bar-wrapper {
+            display: flex;
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            margin-bottom: 1.25rem;
+            gap: 2px;
+        }
+
+        .lang-bar-segment {
+            transition: width 0.3s ease;
+        }
+
+        .lang-bar-segment:nth-child(1) { background-color: #3b82f6; }
+        .lang-bar-segment:nth-child(2) { background-color: #10b981; }
+        .lang-bar-segment:nth-child(3) { background-color: #f59e0b; }
+        .lang-bar-segment:nth-child(4) { background-color: #8b5cf6; }
+        .lang-bar-segment:nth-child(5) { background-color: #ec4899; }
+        .lang-bar-segment:nth-child(6) { background-color: #06b6d4; }
+        .lang-bar-segment:nth-child(7) { background-color: #84cc16; }
+
+        .lang-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .lang-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .lang-tech {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .lang-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+        }
+
+        li:nth-child(1) .lang-dot { background-color: #3b82f6; }
+        li:nth-child(2) .lang-dot { background-color: #10b981; }
+        li:nth-child(3) .lang-dot { background-color: #f59e0b; }
+        li:nth-child(4) .lang-dot { background-color: #8b5cf6; }
+        li:nth-child(5) .lang-dot { background-color: #ec4899; }
+        li:nth-child(6) .lang-dot { background-color: #06b6d4; }
+        li:nth-child(7) .lang-dot { background-color: #84cc16; }
+
+        .lang-meta {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        /* Facts */
+        .facts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+        }
+
+        .fact-card {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .fact-icon {
+            font-size: 1.5rem;
+        }
+
+        .fact-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fact-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .fact-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Repositories */
+        .repos-container {
+            margin-bottom: 2rem;
+        }
+
+        .repo-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .repo-card {
+            background-color: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+        }
+
+        .repo-card-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            word-break: break-all;
+        }
+
+        .repo-card-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Badge Snippet Card */
+        .badge-snippet-card {
+            background-color: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.75rem;
+            margin-top: 2rem;
+        }
+
+        .badge-preview {
+            margin: 1.25rem 0;
+        }
+
+        .badge-code {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 0.85rem 1.25rem;
+            border-radius: var(--radius-sm);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.85rem;
+            color: #38bdf8;
+            word-break: break-all;
+            user-select: all;
+        }
+
+        @media (max-width: 768px) {
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+            .profile-hero {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .facts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/" class="nav-brand"><span class="bolt">&#9889;</span> Sourcerer</a>
+            <div class="nav-links">
+                <a href="/">Dashboard</a>
+            </div>
+        </nav>
+
+        <!-- Profile Hero -->
+        <div class="profile-hero">
+            <div class="profile-info">
+                <div class="avatar">{{slice .Name 0 1}}</div>
+                <div class="profile-meta">
+                    <h1>{{.Name}}</h1>
+                    <div class="profile-email">{{.Email}}</div>
+                    <span class="verified-badge">&#10003; Sourcerer Verified Profile</span>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <a href="/badge/{{.Email}}.svg" target="_blank" class="btn-badge">View SVG Badge</a>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="stats-summary-grid">
+            <div class="summary-card commits">
+                <div class="value">{{.TotalCommits}}</div>
+                <div class="label">Total Commits</div>
+            </div>
+            <div class="summary-card added">
+                <div class="value">+{{.LinesAdded}}</div>
+                <div class="label">Lines Added</div>
+            </div>
+            <div class="summary-card deleted">
+                <div class="value">-{{.LinesDeleted}}</div>
+                <div class="label">Lines Deleted</div>
+            </div>
+            <div class="summary-card repos">
+                <div class="value">{{len .Repos}}</div>
+                <div class="label">Analyzed Repos</div>
+            </div>
+        </div>
+
+        <!-- Middle Grid: Languages & Habits -->
+        <div class="profile-grid">
+            <!-- Languages Card -->
+            <div class="section-card">
+                <h2>Top Languages &amp; Tech</h2>
+                {{if not .Languages}}
+                    <p style="color: var(--text-dim); font-style: italic;">No language stats available.</p>
+                {{else}}
+                    <div class="lang-bar-wrapper">
+                        {{range .Languages}}
+                        <div class="lang-bar-segment" style="width: {{.Percentage}}%;" title="{{.Tech}}: {{.Percentage}}%"></div>
+                        {{end}}
+                    </div>
+                    <ul class="lang-list">
+                        {{range .Languages}}
+                        <li>
+                            <div class="lang-tech">
+                                <span class="lang-dot"></span>
+                                <span>{{.Tech}}</span>
+                            </div>
+                            <div class="lang-meta">{{.Percentage}}% &bull; {{.Lines}} lines</div>
+                        </li>
+                        {{end}}
+                    </ul>
+                {{end}}
+            </div>
+
+            <!-- Coding Habits / Facts -->
+            <div class="section-card">
+                <h2>Coding Habits &amp; Facts</h2>
+                {{if not .Facts.HasData}}
+                    <p style="color: var(--text-dim); font-style: italic;">Habits will appear once commits are analyzed.</p>
+                {{else}}
+                    <div class="facts-grid">
+                        {{if .Facts.WorkStyle}}
+                        <div class="fact-card">
+                            <span class="fact-icon">{{.Facts.WorkStyleIcon}}</span>
+                            <div class="fact-details">
+                                <span class="fact-title">{{.Facts.WorkStyle}}</span>
+                                <span class="fact-desc">{{.Facts.WorkStyleDesc}}</span>
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .Facts.IndentHabit}}
+                        <div class="fact-card">
+                            <span class="fact-icon">{{.Facts.IndentIcon}}</span>
+                            <div class="fact-details">
+                                <span class="fact-title">{{.Facts.IndentHabit}}</span>
+                                <span class="fact-desc">{{.Facts.IndentDesc}}</span>
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .Facts.NamingStyle}}
+                        <div class="fact-card">
+                            <span class="fact-icon">{{.Facts.NamingIcon}}</span>
+                            <div class="fact-details">
+                                <span class="fact-title">{{.Facts.NamingStyle}}</span>
+                                <span class="fact-desc">{{.Facts.NamingDesc}}</span>
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .Facts.ScheduleStyle}}
+                        <div class="fact-card">
+                            <span class="fact-icon">{{.Facts.ScheduleIcon}}</span>
+                            <div class="fact-details">
+                                <span class="fact-title">{{.Facts.ScheduleStyle}}</span>
+                                <span class="fact-desc">{{.Facts.ScheduleDesc}}</span>
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .Facts.AvgCommitSize}}
+                        <div class="fact-card">
+                            <span class="fact-icon">&#128202;</span>
+                            <div class="fact-details">
+                                <span class="fact-title">{{.Facts.AvgCommitSize}} lines</span>
+                                <span class="fact-desc">Avg Commit Size</span>
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .Facts.AvgLineLength}}
+                        <div class="fact-card">
+                            <span class="fact-icon">&#128221;</span>
+                            <div class="fact-details">
+                                <span class="fact-title">{{.Facts.AvgLineLength}} chars</span>
+                                <span class="fact-desc">Avg Line Length</span>
+                            </div>
+                        </div>
+                        {{end}}
+                    </div>
+                {{end}}
+            </div>
+        </div>
+
+        <!-- Repositories Section -->
+        {{if .Repos}}
+        <div class="section-card repos-container">
+            <h2>Analyzed Repositories</h2>
+            <ul class="repo-list">
+                {{range .Repos}}
+                <li class="repo-card">
+                    <div class="repo-card-title">{{.Rehash}}</div>
+                    <div class="repo-card-stats">
+                        <span>{{.CommitCount}} commits</span>
+                        <span style="color: var(--success);">+{{.LinesAdded}}</span>
+                        <span style="color: var(--danger);">-{{.LinesDeleted}}</span>
+                    </div>
+                </li>
+                {{end}}
+            </ul>
+        </div>
+        {{end}}
+
+        <!-- GitHub README Badge Snippet -->
+        <div class="badge-snippet-card">
+            <h2>Embed into GitHub README</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Showcase your Sourcerer impact directly on your GitHub Profile README:</p>
+            <div class="badge-preview">
+                <img src="/badge/{{.Email}}.svg" alt="Sourcerer Badge Preview" style="max-width: 100%; border-radius: var(--radius-md);">
+            </div>
+            <div class="badge-code">
+                [![Sourcerer Profile](http://localhost:8080/badge/{{.Email}}.svg)](http://localhost:8080/p/{{.Email}})
+            </div>
+        </div>
+    </div>
+</body>
+</html>

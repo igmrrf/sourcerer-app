@@ -1,0 +1,66 @@
+<h2>Coding Habits &amp; Facts</h2>
+{{if not .HasData}}
+    <p class="empty-state">No coding habit data computed yet. Ingest repositories to unlock facts!</p>
+{{else}}
+    <div class="facts-grid">
+        {{if .WorkStyle}}
+        <div class="fact-card">
+            <span class="fact-icon">{{.WorkStyleIcon}}</span>
+            <div class="fact-details">
+                <span class="fact-title">{{.WorkStyle}}</span>
+                <span class="fact-desc">{{.WorkStyleDesc}}</span>
+            </div>
+        </div>
+        {{end}}
+
+        {{if .IndentHabit}}
+        <div class="fact-card">
+            <span class="fact-icon">{{.IndentIcon}}</span>
+            <div class="fact-details">
+                <span class="fact-title">{{.IndentHabit}}</span>
+                <span class="fact-desc">{{.IndentDesc}}</span>
+            </div>
+        </div>
+        {{end}}
+
+        {{if .NamingStyle}}
+        <div class="fact-card">
+            <span class="fact-icon">{{.NamingIcon}}</span>
+            <div class="fact-details">
+                <span class="fact-title">{{.NamingStyle}}</span>
+                <span class="fact-desc">{{.NamingDesc}}</span>
+            </div>
+        </div>
+        {{end}}
+
+        {{if .ScheduleStyle}}
+        <div class="fact-card">
+            <span class="fact-icon">{{.ScheduleIcon}}</span>
+            <div class="fact-details">
+                <span class="fact-title">{{.ScheduleStyle}}</span>
+                <span class="fact-desc">{{.ScheduleDesc}}</span>
+            </div>
+        </div>
+        {{end}}
+
+        {{if .AvgCommitSize}}
+        <div class="fact-card">
+            <span class="fact-icon">&#128202;</span>
+            <div class="fact-details">
+                <span class="fact-title">{{.AvgCommitSize}} lines</span>
+                <span class="fact-desc">Average commit size</span>
+            </div>
+        </div>
+        {{end}}
+
+        {{if .AvgLineLength}}
+        <div class="fact-card">
+            <span class="fact-icon">&#128221;</span>
+            <div class="fact-details">
+                <span class="fact-title">{{.AvgLineLength}} chars</span>
+                <span class="fact-desc">Average line length</span>
+            </div>
+        </div>
+        {{end}}
+    </div>
+{{end}}

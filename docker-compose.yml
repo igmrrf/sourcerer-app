@@ -19,9 +19,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
+      - ENV=${ENV:-production}
       - DATABASE_URL=host=db user=${POSTGRES_USER:-postgres} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB:-sourcerer} sslmode=disable
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
@@ -34,5 +35,17 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  proxy:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+

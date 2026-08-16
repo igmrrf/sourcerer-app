@@ -1,283 +1,371 @@
-# Sourcerer App — Project Documentation
+# Sourcerer App — System Documentation
 
-> Consolidated document covering architecture, design, implementation, cloud deployment, and production review.
+> Comprehensive architecture, design, API reference, data schema, and deployment guide for the Sourcerer platform.
 
 ---
 
 ## Table of Contents
 
-1. [Design Plan](#1-design-plan)
-2. [Cloud Architecture](#2-cloud-architecture)
-3. [Implementation Plan](#3-implementation-plan)
-4. [Implementation Walkthrough](#4-implementation-walkthrough)
-5. [Production Review — Initial Findings](#5-production-review--initial-findings)
-6. [Production Review — Fixes Applied](#6-production-review--fixes-applied)
-7. [Remaining Items](#7-remaining-items)
-8. [Deployment Steps](#8-deployment-steps)
+1. [Architecture Overview](#1-architecture-overview)
+2. [Core Components](#2-core-components)
+3. [Ingestion & Processing Pipeline](#3-ingestion--processing-pipeline)
+4. [Database Schema & Data Model](#4-database-schema--data-model)
+5. [API Reference](#5-api-reference)
+6. [Frontend & Visual Profiles](#6-frontend--visual-profiles)
+7. [Security & Operational Architecture](#7-security--operational-architecture)
+8. [Configuration & Environment Variables](#8-configuration--environment-variables)
+9. [Development & Deployment](#9-development--deployment)
+10. [Changelog](#10-changelog)
 
 ---
 
-## 1. Design Plan
+## 1. Architecture Overview
 
-### Architecture Overview
-- **CLI App (Existing):** Written in Java/Kotlin. Processes local repos, extracts stats, formats them as Protobuf messages (`CommitGroup`, `FactGroup`, `AuthorGroup`), and sends POST requests to the backend API.
-- **Backend API & Web App:** Written in **Go**.
-  - Receives Protobuf payloads via HTTP (e.g., `/api/commit`).
-  - Uses `protoc` with a Go plugin to decode the incoming requests.
-  - Connects to a **PostgreSQL** database using standard `database/sql`.
-  - Serves **HTMX**-powered HTML templates for the frontend interface.
-- **Frontend Dashboard:** Built with **HTMX** and **Vanilla CSS**.
-  - Uses Go `html/template` to render pages.
-  - Uses HTMX for dynamic interactions (e.g., switching between repos, loading charts).
+Sourcerer is an automated visual profiling platform for software engineers. It analyzes code repositories, extracts granular commit and language statistics, calculates coding habits, and generates interactive dashboards, shareable public developer profiles, and dynamic SVG badges for GitHub READMEs.
 
-### Directory Structure
-- `backend/`: The Go App (containing API and HTMX templates).
-- `cli/`: The Java/Kotlin CLI tool for repository analysis.
-
-### Database Schema (PostgreSQL)
-Tables store the information defined in `sourcerer.proto`:
-- `users` (email, primary, verified)
-- `repos` (rehash, initial_commit_rehash)
-- `commits` (rehash, repo_rehash, author_email, date, lines_added, lines_deleted)
-- `commit_stats` (commit_rehash, num_lines_added, num_lines_deleted, type, tech)
-- `facts` (repo_rehash, email, code, key, values)
-- `authors` (email, name, repo_rehash)
-
-### Implementation Steps
-1. **Go App Setup** — Initialize `go mod`, compile `.proto` to Go, create PostgreSQL connection and schema migration.
-2. **Ingestion API** — Implement HTTP handlers for `application/x-protobuf` data. Persist received protobuf objects to PostgreSQL.
-3. **HTMX Frontend** — Create `templates/` folder, add HTMX via script tag, build dashboard views (Summary, Languages, Stats) using Go templates and HTMX.
-
----
-
-## 2. Cloud Architecture
-
-To transition Sourcerer from a local CLI tool to a fully automated cloud application (SaaS) deployed on a Droplet, the ingestion workload shifts from the user's machine to the backend infrastructure.
-
-### GitHub OAuth Integration (Go Backend)
-- **OAuth Endpoints**: `/auth/github/login` and `/auth/github/callback` routes using `golang.org/x/oauth2`.
-- **User Session**: Upon successful login, extract the user's GitHub identity (email) and establish a secure HTTP session using signed cookies.
-- **Repo Discovery**: Use the GitHub API to fetch a list of the user's repositories.
-
-### Background Ingestion Worker (Go Backend)
-- **Job Queue**: Channel-based background worker queue using Go channels (buffered, 100 capacity).
-- **Cloning**: The worker clones a user's repository into a temporary directory using `git clone`, prepares it for analysis.
-
-### Headless CLI Execution (Kotlin → Subprocess)
-- **CLI Modification**: `Main.kt` accepts a `--headless` flag, bypassing `ConsoleUi` and immediately processing a provided directory.
-- **Subprocess Invocation**: The Go worker executes `java -jar sourcerer-app.jar --headless --path /tmp/repo-123` via `os/exec`.
-- **Local Ingestion**: The CLI sends protobuf payloads directly to the internal Go backend API (`http://localhost:8080/api/commits`).
-
-### Infrastructure & Docker Compose
-- `backend/Dockerfile` installs `git` and `openjdk17-jre` alongside the Go binary.
-- `sourcerer-app.jar` is mounted into the Go backend container.
-- `docker-compose.yml` includes GitHub OAuth client IDs and secrets as environment variables.
-
-> [!IMPORTANT]
-> **GitHub OAuth App Required**: You must create a GitHub OAuth application in your GitHub developer settings and provide the `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` via `.env`.
-
-> [!WARNING]
-> **Container Size**: Because the Go backend runs the Java CLI, the Docker container bundles an OpenJDK JRE and Git, increasing the final image size.
+```
+                  +-------------------------------------------------------+
+                  |                      Client Tier                      |
+                  |  (Browser / GitHub Profile Embeds / Headless CLI)     |
+                  +---------------------------+---------------------------+
+                                              |
+                                              | HTTP / HTTPS
+                                              v
+                  +-------------------------------------------------------+
+                  |                  Nginx Reverse Proxy                  |
+                  |     (Port 80/443, SSL/TLS, Rate Limiting, Gzip)       |
+                  +---------------------------+---------------------------+
+                                              |
+                                              | Internal Network (:8080)
+                                              v
++-----------------------------------------------------------------------------------------+
+|                                    Go Backend Service                                    |
+|                                                                                         |
+|  +---------------------+  +------------------------+  +-------------------------------+ |
+|  |   Chi HTTP Router   |  |   GitHub OAuth & Auth  |  |  Ingestion Worker (JobQueue)  | |
+|  |  (Throttling, CORS) |  |   (HMAC Signed Cookie) |  |  (Subprocess Git & Java CLI)  | |
+|  +----------+----------+  +-----------+------------+  +---------------+---------------+ |
+|             |                         |                               |                 |
+|             +-------------------------+-------------------------------+                 |
+|                                       |                                                 |
+|                                       v                                                 |
+|                      +----------------------------------+                               |
+|                      |  Protobuf Deserialization (API)  |                               |
+|                      |  Template Rendering (HTMX / FS)  |                               |
+|                      +----------------+-----------------+                               |
++---------------------------------------|-------------------------------------------------+
+                                        |
+                                        | SQL (database/sql, lib/pq)
+                                        v
+                  +-------------------------------------------------------+
+                  |                  PostgreSQL Database                  |
+                  |  (Users, Repos, Commits, Commit Stats, Facts, Authors)|
+                  +-------------------------------------------------------+
+```
 
 ---
 
-## 3. Implementation Plan
+## 2. Core Components
 
-### Go Backend Components
+### 2.1 Backend Web App & Ingestion API (`backend/`)
+- Written in **Go 1.21+** utilizing standard library components (`database/sql`, `log/slog`, `embed.FS`, `crypto/hmac`) and `go-chi/chi/v5`.
+- Decodes incoming Protobuf payloads (`application/x-protobuf`) sent by the analysis CLI.
+- Manages user sessions via cryptographically signed HMAC-SHA256 cookies.
+- Orchestrates asynchronous repository cloning and analysis via a non-blocking worker queue.
+- Serves dynamic HTMX dashboard cards, public developer profile pages, and SVG README badges.
 
-| Action | File | Description |
+### 2.2 Repository Analysis CLI (`cli/`)
+- Built in **Java / Kotlin** with Gradle.
+- Performs AST-level language parsing, library usage detection (over 1,000 supported libraries), and commit history extraction.
+- Supports both interactive console wizard mode and headless daemon mode (`--headless --path <dir>`).
+- Encodes analysis outputs into Protocol Buffer messages defined in `sourcerer.proto`.
+
+### 2.3 Reverse Proxy & Gateway (`nginx/`)
+- Production-tuned **Nginx** reverse proxy protecting internal services.
+- Implements dual rate-limiting zones (`api_limit` at 10 r/s and `general_limit` at 30 r/s).
+- Applies enterprise security headers and Gzip compression for static assets and SVGs.
+- Configured for SSL/TLS termination on port 443.
+
+### 2.4 Data Store (`PostgreSQL 15`)
+- Relational schema storing users, indexed repositories, commit histories, per-language technology statistics, facts/coding habits, and author records.
+- Automated schema migrations applied during application initialization.
+
+---
+
+## 3. Ingestion & Processing Pipeline
+
+The ingestion pipeline transitions local repository analysis into an automated cloud service:
+
+```
+[User Login via GitHub OAuth]
+            |
+            v
+[Discover User Repositories via GitHub API]
+            |
+            v
+[Enqueue Repo Jobs into Ingestion Worker (Buffered Channel)]
+            |
+            v
+[Worker Clones Git Repository into Temp Directory]
+            |
+            v
+[Worker Executes Headless CLI Subprocess: java -jar sourcerer-app.jar --headless --path <tmp_dir>]
+            |
+            v
+[CLI Posts Protobuf Batches to Internal Ingestion API (/api/commits, /api/facts, /api/authors)]
+            |
+            v
+[API Deserializes Protobuf & Persists into PostgreSQL in Batched Transactions]
+            |
+            v
+[Worker Cleans Up Temp Directory (`defer os.RemoveAll`)]
+            |
+            v
+[HTMX Dashboard / Public Profile Updated in Real-Time]
+```
+
+### Worker Queue Mechanics
+- **Capacity**: Channel-buffered job queue (`chan Job`, 100 capacity).
+- **Concurrency**: Worker routines process repositories sequentially per container to manage system memory and CPU during intensive AST parsing.
+- **Safety**: Non-blocking `EnqueueJob` with `select/default` semantics prevents incoming OAuth webhooks from blocking if queue capacity is saturated.
+- **Full History Analysis**: Worker executes full depth clones (without shallow clone depth restrictions) to construct complete historical metrics.
+
+---
+
+## 4. Database Schema & Data Model
+
+The schema is defined in `backend/schema.sql` and mapped to Protocol Buffer models (`sourcerer.proto`).
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+    email TEXT PRIMARY KEY,
+    primary_email BOOLEAN,
+    verified BOOLEAN
+);
+
+CREATE TABLE IF NOT EXISTS repos (
+    rehash TEXT PRIMARY KEY,
+    initial_commit_rehash TEXT
+);
+
+CREATE TABLE IF NOT EXISTS commits (
+    rehash TEXT PRIMARY KEY,
+    repo_rehash TEXT REFERENCES repos(rehash),
+    author_name TEXT,
+    author_email TEXT,
+    date BIGINT,
+    is_qommit BOOLEAN,
+    num_lines_added INTEGER,
+    num_lines_deleted INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_commits_repo ON commits(repo_rehash);
+CREATE INDEX IF NOT EXISTS idx_commits_date ON commits(date);
+CREATE INDEX IF NOT EXISTS idx_commits_author_email ON commits(author_email);
+
+CREATE TABLE IF NOT EXISTS commit_stats (
+    id SERIAL PRIMARY KEY,
+    commit_rehash TEXT REFERENCES commits(rehash),
+    num_lines_added INTEGER,
+    num_lines_deleted INTEGER,
+    type INTEGER,
+    tech TEXT,
+    UNIQUE (commit_rehash, tech, type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_commit_stats_commit ON commit_stats(commit_rehash);
+CREATE INDEX IF NOT EXISTS idx_commit_stats_tech ON commit_stats(tech);
+
+CREATE TABLE IF NOT EXISTS facts (
+    id SERIAL PRIMARY KEY,
+    repo_rehash TEXT REFERENCES repos(rehash),
+    email TEXT,
+    code INTEGER,
+    key INTEGER,
+    value1 TEXT,
+    value2 TEXT,
+    value3 TEXT,
+    value4 TEXT,
+    UNIQUE (repo_rehash, email, code, key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_facts_repo_email ON facts(repo_rehash, email);
+
+CREATE TABLE IF NOT EXISTS authors (
+    email TEXT PRIMARY KEY,
+    name TEXT,
+    repo_rehash TEXT REFERENCES repos(rehash)
+);
+```
+
+### Fact Codes Reference
+Facts store computed behavioral attributes per author and repository:
+- **Code 100 (Work Habits)**: Commit distribution across time of day (`value1` = daytime commits, `value2` = nighttime commits). Used to determine "Night Owl" vs. "Early Bird" style.
+- **Code 101 (Weekend Activity)**: Commit frequency comparing weekdays vs. weekends (`value1` = weekday count, `value2` = weekend count).
+- **Code 200 (Code Style - Indentation)**: Indentation style (`value1` = spaces count, `value2` = tabs count).
+- **Code 201 (Code Style - Variable Naming)**: Identifier casing conventions (`value1` = `snake_case` count, `value2` = `camelCase` count).
+- **Code 300 (Commit Granularity)**: Average lines changed per commit and aggregate commit size distributions.
+
+---
+
+## 5. API Reference
+
+All ingestion endpoints require internal authentication via the `Authorization: Bearer <API_INTERNAL_TOKEN>` header or a valid `Token` session cookie.
+
+### 5.1 Protobuf Ingestion Endpoints
+
+| Method | Endpoint | Description | Payload Type |
+|---|---|---|---|
+| `POST` | `/api/auth` | Exchange CLI token / initialize ingestion session | JSON / Form |
+| `GET` | `/api/user` | Fetch active user profile model | Protobuf (`app.User`) |
+| `POST` | `/api/user` | Register or update user record | Protobuf (`app.User`) |
+| `POST` | `/api/repo` | Register repository metadata | Protobuf (`app.Repo`) |
+| `POST` | `/api/commits` | Ingest batch of commits & language stats | Protobuf (`app.CommitGroup`) |
+| `DELETE`| `/api/commits` | Purge commits for a repository | Query Param `rehash` |
+| `POST` | `/api/facts` | Ingest computed code facts & habits | Protobuf (`app.FactGroup`) |
+| `POST` | `/api/authors` | Ingest author mappings | Protobuf (`app.AuthorGroup`) |
+| `POST` | `/api/distances`| Ingest developer proximity & distance metrics | Protobuf (`app.Distances`) |
+| `POST` | `/api/process` | Check or update asynchronous ingestion status | JSON |
+
+### 5.2 Authentication & User Routes
+
+| Method | Endpoint | Description |
 |---|---|---|
-| MODIFY | `backend/Dockerfile` | Install `git` and `openjdk17-jre` in final Alpine stage |
-| MODIFY | `docker-compose.yml` | Inject OAuth secrets, mount `.jar` volume |
-| MODIFY | `backend/go.mod` | Add `golang.org/x/oauth2` and `go-github/v60` |
-| MODIFY | `backend/main.go` | Add session cookies, OAuth routes, repo discovery |
-| NEW | `backend/worker.go` | Channel-based job queue, `git clone`, Java subprocess execution |
+| `GET` | `/auth/github/login` | Initiates GitHub OAuth handshake with CSRF token |
+| `GET` | `/auth/github/callback` | Validates CSRF state, exchanges token, enqueues repos |
+| `GET` | `/auth/logout` | Clears session cookie and redirects to home page |
 
-### Java CLI Modifications
+### 5.3 System & Diagnostics
 
-| Action | File | Description |
-|---|---|---|
-| MODIFY | `cli/src/main/kotlin/app/Main.kt` | Add `--headless` flag, skip interactive UI |
-| MODIFY | `cli/src/main/kotlin/app/utils/Options.kt` | Add `--headless` and `--path` JCommander parameters |
-
-### Verification Plan
-- **Backend Build**: `go build ./...` inside the backend directory.
-- **CLI Build**: `./gradlew build` inside the CLI directory.
-- **Docker Compose**: `docker-compose up --build` — verify Java and Git install.
-- **OAuth Login**: Navigate to `http://localhost:8080`, click "Login with GitHub", authorize.
-- **Worker Execution**: Check container logs for "Cloning repository..." and Java CLI output.
-- **Dashboard Update**: Refresh and verify user's email appears in dropdown with stats.
-
-### Open Questions
-1. What GitHub scopes should we request? (`repo` for private repos, or just `public_repo`?)
-2. Should we rate-limit or cap the number of repos we clone per user?
-3. Does the Java CLI rely on a hardcoded API URL for uploading, or can we configure it via `--server`?
+| Method | Endpoint | Description | Response |
+|---|---|---|---|
+| `GET` | `/healthz` | Container health probe & database ping | `200 OK ("ok")` / `503 Service Unavailable` |
 
 ---
 
-## 4. Implementation Walkthrough
+## 6. Frontend & Visual Profiles
 
-### Changes Made
-The architecture was successfully transitioned from a local-CLI ingestion model to a server-side automated ingestion pipeline.
+The frontend is constructed with Go templates, HTMX, and modern CSS without heavy client-side JavaScript frameworks.
 
-1. **Java CLI Updates**:
-   - Added `--headless` and `--path` flags to bypass interactive `ConsoleUi`.
-   - Modified `Main.kt` to trigger repository hashing immediately when `--headless` is supplied.
-   - Updated `build.gradle` to set the API endpoint to `http://localhost:8080/api` by default.
+### 6.1 Interactive HTMX Dashboard (`/`)
+- **Summary Metrics (`/dashboard/stats?email=...`)**: Real-time aggregation of total commits, total lines added, and lines deleted.
+- **Language Distribution (`/dashboard/languages?email=...`)**: Dynamic percentage progress bars showing language breakdowns with color coding.
+- **Repository List (`/dashboard/repos?email=...`)**: Ingested repository cards displaying commit volumes and line stats.
+- **Coding Habits & Facts (`/dashboard/facts?email=...`)**: Visual breakdown of developer traits (Night Owl / Early Bird, Weekday Warrior / Weekend Hacker, Spaces vs Tabs, CamelCase vs Snake_case, Average Commit Size).
+- **Auto-Refresh**: Smooth background polling via HTMX (`hx-trigger="every 30s"`).
 
-2. **Go Backend Worker**:
-   - Added `go-github/v60` and `golang.org/x/oauth2` to `go.mod`.
-   - Built `worker.go` goroutine with channel-based `JobQueue`.
-   - Worker clones repos to temp dir, invokes Java CLI headlessly, cleans up after.
+### 6.2 Public Developer Profiles (`/u/{username}` & `/p/{email}`)
+- Publicly accessible, responsive profile pages for sharing portfolio stats.
+- Displays contributor hero headers, verified badges, aggregate statistics, top languages, repository history, and coding habit traits.
+- Includes a copyable Markdown / HTML snippet for embedding dynamic profile badges directly on GitHub profile READMEs.
 
-3. **GitHub OAuth Flow**:
-   - Implemented `/auth/github/login` and `/auth/github/callback` routes.
-   - On successful callback, fetches all repositories and enqueues them for processing.
-   - Sets a signed session cookie and redirects to dashboard.
+### 6.3 Dynamic SVG README Badges (`/badge/{email}.svg`)
+- Generates pixel-perfect SVG cards dynamically rendered on the server.
+- Embeddable in GitHub READMEs: `![Sourcerer Profile](https://your-domain.com/badge/user@example.com.svg)`
+- Includes HTTP cache headers (`Cache-Control: public, max-age=1800`) for GitHub CDN optimization.
 
-4. **Docker Stack**:
-   - Modified `backend/Dockerfile` to install `openjdk17-jre` and `git`.
-   - Updated `docker-compose.yml` to inject OAuth credentials.
-
-5. **Frontend**:
-   - Added a **Login with GitHub** button to the navigation bar.
-
-### Validation
-- **Backend Compilation**: Confirmed `main.go` and `worker.go` build successfully.
-- **Code Integration**: Verified `Options.kt` and `Main.kt` accept `--headless` and correctly invoke the backend URL.
+### 6.4 Template Rendering Pipeline
+- **Development Mode (`ENV=development`)**: Dynamic hot-reloading from disk via `template.ParseGlob("templates/*.html")` for zero-restart template iteration.
+- **Production Mode (`ENV=production`)**: High-performance in-memory execution using Go 1.16+ embedded files (`embed.FS`).
 
 ---
 
-## 5. Production Review — Initial Findings
+## 7. Security & Operational Architecture
 
-The initial review identified 19 issues across security, correctness, and infrastructure.
+### 7.1 Cryptographic Session Management
+- Sessions use signed HMAC-SHA256 cookies (`session=<base64_payload>.<hex_hmac>`).
+- Cookies are configured with security attributes: `HttpOnly`, `SameSite=Lax`, and `Path=/`.
+- Cryptographic verification uses constant-time comparison (`hmac.Equal`) to eliminate timing attacks.
 
-### Critical Issues Found
+### 7.2 OAuth CSRF Protection
+- `/auth/github/login` generates a cryptographically random 32-byte state token stored in a short-lived `oauth_state` cookie.
+- `/auth/github/callback` verifies the returned state parameter against the cookie using constant-time comparison before exchanging tokens.
 
-| ID | Issue | Impact |
-|---|---|---|
-| C1 | OAuth CSRF — hardcoded `"state"` parameter | Attacker can forge OAuth callbacks |
-| C2 | Session cookie stores raw email, no signing | Any user can impersonate another by setting `session=email` |
-| C3 | Exposed PostgreSQL port `5432` in Docker | Database directly accessible from internet |
-| C4 | Hardcoded `postgres/postgres` credentials | Committed secrets in source control |
-| C5 | Hardcoded Sentry DSN with embedded secret key | Leaked API secret in `build.gradle` |
+### 7.3 Ingestion API Authentication
+- Protected by `apiAuthMiddleware`. All requests to `/api/*` must present a matching `API_INTERNAL_TOKEN` via `Authorization: Bearer` or the `Token` cookie.
 
-### High Severity Issues Found
+### 7.4 Traffic Throttling & Rate Limiting
+- **Edge Throttling**: Nginx enforces rate limit zones (`general_limit: 30r/s`, `api_limit: 10r/s`).
+- **Application Throttling**: Chi middleware (`middleware.ThrottleBacklog(100, 50, 5s)`) prevents thread pool exhaustion during request bursts.
 
-| ID | Issue | Impact |
-|---|---|---|
-| H1 | No authentication on API ingestion endpoints | Anyone can POST arbitrary data into DB |
-| H2 | Worker queue blocks on >100 repos | Goroutine hangs indefinitely |
-| H3 | Worker passes `--password dummy` to CLI | Fragile mock authentication |
-| H4 | Missing reverse proxy and SSL/TLS | No encryption in transit |
-| H5 | Template references undefined `.User` field | Login state never displayed |
-| H6 | `tx.Commit()` errors ignored in 3 handlers | Silent data loss on commit failure |
-| H7 | No CORS configuration | Cross-origin requests blocked |
-
-### Medium Severity Issues Found
-
-| ID | Issue | Impact |
-|---|---|---|
-| M1 | No `/healthz` endpoint | No container health monitoring |
-| M2 | HTMX loaded without SRI hash | CDN compromise risk |
-| M3 | Dashboard swallows query errors | Silent failures, empty data |
-| M4 | Missing `author_email` index on commits | Full table scans on filtered queries |
-| M5 | `run.sh` assumes `psql` locally | Script fails in Docker |
-| M6 | Compiled binary committed to git | 18 MB unnecessary in repo |
-| M7 | Dashboard polls every 5 seconds | Excessive DB load per browser tab |
-
-### What Was Already Correct
-- Graceful shutdown with `SIGTERM` handling (5s timeout)
-- Connection pooling (`MaxOpenConns=25`, `MaxIdleConns=25`, `ConnMaxLifetime=5min`)
-- Body size limits via `io.LimitReader` (10-50 MB)
-- Database indexes on foreign keys and queried columns
-- Idempotent inserts with `ON CONFLICT DO NOTHING`
-- Multi-stage Docker build
-- Worker cleanup with `defer os.RemoveAll(tmpDir)`
-- Configurable port via `PORT` env var
+### 7.5 Structured Logging & Graceful Shutdown
+- Standard library `log/slog` structured logging formats logs as clean text in development and structured JSON in production.
+- Handles `SIGINT` and `SIGTERM` signals with a 5-second graceful shutdown timeout to allow active database transactions and HTTP requests to complete.
 
 ---
 
-## 6. Production Review — Fixes Applied
+## 8. Configuration & Environment Variables
 
-> **All critical and high-severity issues RESOLVED.** ✅
+All settings are configured via environment variables. See `.env.example` for reference:
 
-### Critical Issues — ALL FIXED ✅
-
-| ID | Fix Applied |
-|---|---|
-| C1 | Random 32-byte state stored in `oauth_state` cookie, validated with `hmac.Equal` in callback |
-| C2 | HMAC-SHA256 signed cookies with `HttpOnly`, `SameSite=Lax`, `MaxAge` flags |
-| C3 | Removed `ports: "5432:5432"` from `docker-compose.yml` |
-| C4 | All credentials externalized to `${VAR}` references; `.env.example` created |
-| C5 | Changed to `System.getenv('SENTRY_DSN') ?: ''` in `build.gradle` |
-
-### High Severity — ALL FIXED ✅
-
-| ID | Fix Applied |
-|---|---|
-| H1 | Added `apiAuthMiddleware` checking `API_INTERNAL_TOKEN` via Bearer header or cookie |
-| H2 | Added `EnqueueJob()` with `select/default` — drops jobs with warning when queue full |
-| H3 | Removed `--password dummy` from Java CLI invocation |
-| H4 | *(Infrastructure-ready — add Nginx/Traefik at deployment time)* |
-| H5 | Added `getSessionEmail()` helper; dashboard reads session cookie and populates `User` field |
-| H6 | All 3 handlers now check commit errors and return 500 on failure |
-| H7 | Added CORS middleware with proper `Access-Control-*` headers and OPTIONS handling |
-
-### Medium Severity — ALL FIXED ✅
-
-| ID | Fix Applied |
-|---|---|
-| M1 | Added `/healthz` endpoint with DB ping |
-| M2 | Added `integrity` and `crossorigin` attributes to HTMX script tag |
-| M3 | Added proper error logging for all DB queries |
-| M4 | Added `idx_commits_author_email` to `schema.sql` |
-| M6 | Added `sourcerer-backend` to `.gitignore` |
-| M7 | Changed polling to `every 30s` |
-
-### Additional Improvements
-
-| Fix | Details |
-|---|---|
-| HTTP server timeouts | `ReadTimeout: 15s`, `WriteTimeout: 30s`, `IdleTimeout: 60s` |
-| Session secret management | Reads `SESSION_SECRET` env var; auto-generates with warning if unset |
-| Docker health checks | PostgreSQL `pg_isready` health check; backend waits for `service_healthy` |
-| Docker compose modernized | Removed deprecated `version: '3.8'` |
-
-### Files Changed
-
-| File | Changes |
-|---|---|
-| `backend/main.go` | OAuth CSRF, signed sessions, user binding, CORS, health check, timeouts, error handling |
-| `backend/api.go` | tx.Commit error checking, API auth middleware |
-| `backend/worker.go` | Non-blocking `EnqueueJob()`, removed dummy password |
-| `backend/schema.sql` | Added `author_email` index |
-| `backend/templates/index.html` | HTMX SRI hash, 30s polling |
-| `backend/.gitignore` | Created — excludes binary and `.env` |
-| `docker-compose.yml` | Externalized secrets, removed DB port, added health checks |
-| `.env.example` | Created — documents all required environment variables |
-| `cli/build.gradle` | Sentry DSN externalized to env var |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ENV` | No | `production` | Environment mode (`development` or `production`) |
+| `PORT` | No | `8080` | Internal HTTP listening port for Go backend |
+| `DATABASE_URL` | Yes | - | PostgreSQL connection URI |
+| `POSTGRES_USER` | Yes | `postgres` | Database username for Docker container |
+| `POSTGRES_PASSWORD` | Yes | - | Database password |
+| `POSTGRES_DB` | Yes | `sourcerer` | Database name |
+| `GITHUB_CLIENT_ID` | Yes | - | GitHub OAuth App Client ID |
+| `GITHUB_CLIENT_SECRET`| Yes | - | GitHub OAuth App Client Secret |
+| `SESSION_SECRET` | Yes | Auto-generated | 32-byte hex secret for signing session cookies |
+| `API_INTERNAL_TOKEN` | Yes | - | Secret token securing `/api/*` ingestion routes |
 
 ---
 
-## 7. Remaining Items
+## 9. Development & Deployment
 
-| ID | Issue | Recommendation |
-|---|---|---|
-| L1 | `log.Printf` instead of structured logging | Migrate to `log/slog` when ready |
-| L2 | CLI uses old dependencies (Kotlin 1.2) | Update if CLI is actively maintained |
-| L4 | No rate limiting | Add `chi/middleware.Throttle` or similar |
-| L5 | `--depth 1` may miss commit history | Remove depth limit if CLI needs full history |
-| L7 | Embedded templates don't hot-reload | Use file-based templates in dev mode |
-| H4 | No Nginx/SSL in docker-compose | Add reverse proxy service for production deployment |
+### 9.1 Local Development
+
+1. **Start PostgreSQL**:
+   ```bash
+   docker compose up -d db
+   ```
+
+2. **Run Backend with Auto-Migration and Live Reloading**:
+   ```bash
+   cd backend
+   ENV=development DATABASE_URL="host=localhost user=postgres password=postgres dbname=sourcerer sslmode=disable" go run .
+   ```
+
+3. **Run Unit Tests**:
+   ```bash
+   cd backend
+   go test -v ./...
+   ```
+
+### 9.2 Full Stack Deployment with Docker Compose
+
+1. **Configure Environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env and supply your credentials and generated secrets
+   ```
+
+2. **Generate Cryptographic Secrets**:
+   ```bash
+   openssl rand -hex 32 # SESSION_SECRET
+   openssl rand -hex 32 # API_INTERNAL_TOKEN
+   ```
+
+3. **Build Analysis CLI**:
+   ```bash
+   cd cli && ./gradlew build
+   ```
+
+4. **Launch Multi-Container Stack**:
+   ```bash
+   docker compose up --build -d
+   ```
+
+5. **Verify Stack Health**:
+   ```bash
+   curl http://localhost/healthz
+   # Output: ok
+   ```
 
 ---
 
-## 8. Deployment Steps
+## 10. Changelog
 
-1. Copy `.env.example` to `.env` and fill in all values
-2. Create a GitHub OAuth App at https://github.com/settings/developers
-3. Generate secrets: `openssl rand -hex 32` for `SESSION_SECRET` and `API_INTERNAL_TOKEN`
-4. Build the CLI: `cd cli && ./gradlew build`
-5. Launch: `docker compose up --build -d`
-6. Add a reverse proxy (Nginx/Caddy) with SSL for production
+For a complete record of all versions, bug fixes, security patches, and feature additions, please refer to [CHANGELOG.md](file:///Users/igmrrf/Desktop/tmp/sourcerer-app/CHANGELOG.md).

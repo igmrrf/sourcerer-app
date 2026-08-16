@@ -2,12 +2,25 @@
 {{if not .}}
     <p class="empty-state">No language data available.</p>
 {{else}}
-    <ul class="lang-list">
-        {{range .}}
-        <li>
-            <span style="font-weight: 500;">{{.Tech}}</span>
-            <span style="color: var(--text-muted);">{{.Lines}} lines</span>
-        </li>
-        {{end}}
-    </ul>
+    <div class="lang-container">
+        <div class="lang-bar-wrapper">
+            {{range .}}
+            <div class="lang-bar-segment" style="width: {{.Percentage}}%;" title="{{.Tech}}: {{.Percentage}}%"></div>
+            {{end}}
+        </div>
+        <ul class="lang-list">
+            {{range .}}
+            <li>
+                <div class="lang-tech-wrapper">
+                    <span class="lang-dot"></span>
+                    <span class="lang-tech-name">{{.Tech}}</span>
+                </div>
+                <div class="lang-metrics">
+                    <span class="lang-percentage">{{.Percentage}}%</span>
+                    <span class="lang-lines">{{.Lines}} lines</span>
+                </div>
+            </li>
+            {{end}}
+        </ul>
+    </div>
 {{end}}

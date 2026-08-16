@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,19 +18,20 @@ var JobQueue = make(chan IngestionJob, 100)
 func EnqueueJob(job IngestionJob) bool {
 	select {
 	case JobQueue <- job:
+		slog.Info("Enqueued repository ingestion job", "repo_url", job.RepoURL, "user_email", job.UserEmail)
 		return true
 	default:
-		log.Printf("WARNING: Job queue full, dropping job for %s: %s\n", job.UserEmail, job.RepoURL)
+		slog.Warn("Job queue full, dropping repository ingestion job", "repo_url", job.RepoURL, "user_email", job.UserEmail)
 		return false
 	}
 }
 
 func StartWorker(ctx context.Context) {
-	log.Println("Starting background ingestion worker...")
+	slog.Info("Starting background ingestion worker")
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Worker shutting down...")
+			slog.Info("Background ingestion worker shutting down")
 			return
 		case job := <-JobQueue:
 			processJob(job)
@@ -39,46 +40,46 @@ func StartWorker(ctx context.Context) {
 }
 
 func processJob(job IngestionJob) {
-	log.Printf("Processing job for %s: %s\n", job.UserEmail, job.RepoURL)
+	slog.Info("Processing repository ingestion job", "repo_url", job.RepoURL, "user_email", job.UserEmail)
 
 	// Create temporary directory for cloning
 	tmpDir, err := os.MkdirTemp("", "sourcerer-*")
 	if err != nil {
-		log.Printf("Failed to create temp dir: %v\n", err)
+		slog.Error("Failed to create temporary directory for clone", "error", err)
 		return
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Clone repository
-	log.Printf("Cloning %s into %s...\n", job.RepoURL, tmpDir)
-	cmdClone := exec.Command("git", "clone", "--depth", "1", job.RepoURL, tmpDir)
+	// Clone repository (full clone without --depth 1 to preserve full commit history)
+	slog.Info("Cloning repository", "repo_url", job.RepoURL, "dir", tmpDir)
+	cmdClone := exec.Command("git", "clone", job.RepoURL, tmpDir)
 	cmdClone.Stdout = os.Stdout
 	cmdClone.Stderr = os.Stderr
 	if err := cmdClone.Run(); err != nil {
-		log.Printf("Failed to clone repository %s: %v\n", job.RepoURL, err)
+		slog.Error("Failed to clone repository", "repo_url", job.RepoURL, "error", err)
 		return
 	}
 
 	// Execute Java CLI
 	jarPath := "/root/sourcerer-app.jar"
-	// if we are running locally (not in docker), we might use a different path
+	// Fallback for local development if not running inside Docker
 	if _, err := os.Stat(jarPath); os.IsNotExist(err) {
-		// Fallback for local testing
 		jarPath = filepath.Join("..", "cli", "build", "libs", "sourcerer-app.jar")
 	}
 
-	log.Printf("Running headless ingestion on %s...\n", tmpDir)
+	slog.Info("Running headless ingestion CLI", "path", tmpDir, "user_email", job.UserEmail)
 	cmdJava := exec.Command("java", "-jar", jarPath,
 		"--headless",
 		"--path", tmpDir,
 		"--username", job.UserEmail)
-	
+
 	cmdJava.Stdout = os.Stdout
 	cmdJava.Stderr = os.Stderr
 	if err := cmdJava.Run(); err != nil {
-		log.Printf("Failed to run Java CLI for %s: %v\n", job.RepoURL, err)
+		slog.Error("Failed to run Java CLI ingestion", "repo_url", job.RepoURL, "error", err)
 		return
 	}
 
-	log.Printf("Successfully ingested %s for %s\n", job.RepoURL, job.UserEmail)
+	slog.Info("Successfully ingested repository", "repo_url", job.RepoURL, "user_email", job.UserEmail)
 }
+

@@ -3,188 +3,547 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sourcerer Dashboard</title>
+    <title>Sourcerer — Engineering Intelligence Dashboard</title>
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy0fVl/6B3eI" crossorigin="anonymous"></script>
     <style>
         :root {
-            --bg-color: #f8fafc;
-            --text-color: #0f172a;
-            --card-bg: #ffffff;
-            --border-color: #e2e8f0;
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --text-muted: #64748b;
+            --bg-color: #0f172a;
+            --surface-bg: #1e293b;
+            --surface-hover: #334155;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --accent: #6366f1;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+            --transition-fast: 0.15s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 0;
-            line-height: 1.5;
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 2rem 1.5rem;
         }
 
+        /* Header */
         header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 3rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 1.25rem;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--card-border);
         }
 
-        h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            margin: 0;
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .brand-titles h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
             letter-spacing: -0.025em;
+            color: var(--text-main);
         }
 
-        .user-selector {
+        .brand-titles p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .controls-section {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.875rem;
+        }
+
+        .user-chip {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            background-color: var(--surface-bg);
+            border: 1px solid var(--card-border);
+            padding: 0.4rem 0.85rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            color: var(--text-main);
         }
 
-        .user-selector select {
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            font-size: 1rem;
+        .user-avatar-badge {
+            width: 22px;
+            height: 22px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #fff;
         }
 
+        .select-wrapper select {
+            background-color: var(--surface-bg);
+            color: var(--text-main);
+            border: 1px solid var(--card-border);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color var(--transition-fast);
+        }
+
+        .select-wrapper select:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: var(--primary);
+            color: #ffffff;
+            padding: 0.5rem 1.15rem;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: background-color var(--transition-fast);
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--surface-hover);
+            color: var(--text-main);
+        }
+
+        /* Dashboard Grid */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
             gap: 1.5rem;
         }
 
         .card {
             background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
+            box-shadow: var(--shadow-card);
+            transition: border-color var(--transition-fast);
+            display: flex;
+            flex-direction: column;
+            min-height: 280px;
         }
 
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            border-color: var(--surface-hover);
         }
 
         .card h2 {
-            font-size: 1.125rem;
-            margin-top: 0;
-            margin-bottom: 1rem;
-            font-weight: 500;
+            font-size: 1.05rem;
+            font-weight: 600;
             color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Stats Styles */
+        .stats-hero {
+            margin-bottom: 1.5rem;
         }
 
         .stat-value {
-            font-size: 2.5rem;
+            font-size: 2.75rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            color: var(--text-main);
+            line-height: 1.1;
+        }
+
+        .stat-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-dim);
+            margin-top: 0.25rem;
+        }
+
+        .stat-metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: auto;
+        }
+
+        .metric-card {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+        }
+
+        .metric-card.added .metric-value {
+            color: var(--success);
+        }
+
+        .metric-card.deleted .metric-value {
+            color: var(--danger);
+        }
+
+        .metric-value {
+            font-size: 1.25rem;
             font-weight: 700;
-            margin: 0;
-            letter-spacing: -0.05em;
+            display: block;
         }
 
-        .button {
-            display: inline-block;
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        /* Language Bar & List */
+        .lang-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .lang-bar-wrapper {
+            display: flex;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            background-color: rgba(15, 23, 42, 0.8);
+            margin-bottom: 1.25rem;
+            gap: 2px;
+        }
+
+        .lang-bar-segment {
             background-color: var(--primary);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.15s ease;
+            transition: width 0.3s ease;
         }
 
-        .button:hover {
-            background-color: var(--primary-hover);
-        }
+        .lang-bar-segment:nth-child(1) { background-color: #3b82f6; }
+        .lang-bar-segment:nth-child(2) { background-color: #10b981; }
+        .lang-bar-segment:nth-child(3) { background-color: #f59e0b; }
+        .lang-bar-segment:nth-child(4) { background-color: #8b5cf6; }
+        .lang-bar-segment:nth-child(5) { background-color: #ec4899; }
+        .lang-bar-segment:nth-child(6) { background-color: #06b6d4; }
+        .lang-bar-segment:nth-child(7) { background-color: #84cc16; }
 
-        ul.lang-list {
+        .lang-list {
             list-style: none;
-            padding: 0;
-            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            overflow-y: auto;
+            max-height: 200px;
         }
 
-        ul.lang-list li {
+        .lang-list li {
             display: flex;
             justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+            font-size: 0.875rem;
         }
 
-        ul.lang-list li:last-child {
-            border-bottom: none;
+        .lang-tech-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .lang-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--primary);
+        }
+
+        li:nth-child(1) .lang-dot { background-color: #3b82f6; }
+        li:nth-child(2) .lang-dot { background-color: #10b981; }
+        li:nth-child(3) .lang-dot { background-color: #f59e0b; }
+        li:nth-child(4) .lang-dot { background-color: #8b5cf6; }
+        li:nth-child(5) .lang-dot { background-color: #ec4899; }
+        li:nth-child(6) .lang-dot { background-color: #06b6d4; }
+        li:nth-child(7) .lang-dot { background-color: #84cc16; }
+
+        .lang-tech-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .lang-metrics {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .lang-percentage {
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .lang-lines {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+
+        /* Repo List */
+        .repo-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            overflow-y: auto;
+            max-height: 220px;
+        }
+
+        .repo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--card-border);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .repo-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: block;
+            word-break: break-all;
+        }
+
+        .repo-meta {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .repo-badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            padding: 0.2rem 0.5rem;
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+        }
+
+        /* Facts Grid */
+        .facts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+        }
+
+        .fact-card {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .fact-icon {
+            font-size: 1.5rem;
+        }
+
+        .fact-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fact-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .fact-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Instructions Card */
+        .instructions-card code {
+            display: block;
+            background-color: #0f172a;
+            border: 1px solid var(--card-border);
+            color: #38bdf8;
+            padding: 0.85rem;
+            border-radius: var(--radius-sm);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            word-break: break-all;
+        }
+
+        .instructions-card p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.5;
         }
 
         .empty-state {
-            color: var(--text-muted);
+            color: var(--text-dim);
             font-style: italic;
+            margin: auto 0;
+            text-align: center;
+            padding: 2rem 0;
         }
 
         .loading {
-            color: var(--text-muted);
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            color: var(--text-dim);
+            margin: auto 0;
+            text-align: center;
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: .5; }
+            50% { opacity: 0.4; }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1.25rem 1rem;
+            }
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .facts-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <div>
-                <h1>Sourcerer Dashboard</h1>
-                <p>Visualizing engineering impact</p>
+            <div class="brand-section">
+                <div class="logo-icon">&#9889;</div>
+                <div class="brand-titles">
+                    <h1>Sourcerer Dashboard</h1>
+                    <p>Visualizing engineering impact &amp; code intelligence</p>
+                </div>
             </div>
-            <div class="user-selector">
+            <div class="controls-section">
                 {{if .User}}
-                <span>Hello, {{.User.Name}}</span>
+                <div class="user-chip">
+                    <span class="user-avatar-badge">{{slice .User.Name 0 1}}</span>
+                    <span>{{.User.Name}}</span>
+                </div>
+                <a href="/p/{{.User.Email}}" class="btn btn-outline" target="_blank">&#128100; Public Profile</a>
+                <a href="/auth/logout" class="btn btn-outline">Logout</a>
                 {{else}}
-                <a href="/auth/github/login" class="button">Login with GitHub</a>
+                <a href="/auth/github/login" class="btn">Login with GitHub</a>
                 {{end}}
-                <select name="email" id="email-select">
-                    <option value="">All Users</option>
-                    {{range .Authors}}
-                    <option value="{{.Email}}">{{if .Name}}{{.Name}} ({{.Email}}){{else}}{{.Email}}{{end}}</option>
-                    {{end}}
-                </select>
+                <div class="select-wrapper">
+                    <select name="email" id="email-select">
+                        <option value="">All Contributors</option>
+                        {{range .Authors}}
+                        <option value="{{.Email}}">{{if .Name}}{{.Name}} ({{.Email}}){{else}}{{.Email}}{{end}}</option>
+                        {{end}}
+                    </select>
+                </div>
             </div>
         </header>
 
         <div class="dashboard-grid">
+            <!-- Overall Stats -->
             <div class="card" hx-get="/dashboard/stats" hx-include="#email-select" hx-trigger="load, change from:#email-select, every 30s" hx-swap="innerHTML">
                 <div class="loading">Loading overall stats...</div>
             </div>
 
+            <!-- Top Languages -->
             <div class="card" hx-get="/dashboard/languages" hx-include="#email-select" hx-trigger="load, change from:#email-select, every 30s" hx-swap="innerHTML">
                 <div class="loading">Loading languages...</div>
             </div>
+
+            <!-- Coding Habits & Fun Facts -->
+            <div class="card" hx-get="/dashboard/facts" hx-include="#email-select" hx-trigger="load, change from:#email-select, every 30s" hx-swap="innerHTML">
+                <div class="loading">Loading coding habits...</div>
+            </div>
+
+            <!-- Analyzed Repositories -->
+            <div class="card" hx-get="/dashboard/repos" hx-include="#email-select" hx-trigger="load, change from:#email-select, every 30s" hx-swap="innerHTML">
+                <div class="loading">Loading repositories...</div>
+            </div>
             
-            <div class="card">
-                <h2>Ingestion Status</h2>
-                <p>Run the sourcerer app locally to see data appear here in real-time!</p>
-                <code style="background: #f1f5f9; padding: 0.5rem; border-radius: 4px; display: block; margin-top: 1rem;">
-                    java -jar sourcerer-app.jar
-                </code>
+            <!-- Ingestion Guide -->
+            <div class="card instructions-card">
+                <h2>CLI Ingestion</h2>
+                <p>Run the headless analyzer on local git repositories to synchronize statistics in real-time:</p>
+                <code>java -jar sourcerer-app.jar --headless --path /path/to/repo</code>
+                <p>Metrics refresh automatically every 30 seconds.</p>
             </div>
         </div>
     </div>
 </body>
 </html>
+

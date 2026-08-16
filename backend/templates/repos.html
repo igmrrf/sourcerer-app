@@ -1,0 +1,16 @@
+<h2>Analyzed Repositories</h2>
+{{if not .}}
+    <p class="empty-state">No repositories analyzed yet.</p>
+{{else}}
+    <ul class="repo-list">
+        {{range .}}
+        <li class="repo-item">
+            <div class="repo-info">
+                <span class="repo-name">{{.Rehash}}</span>
+                <span class="repo-meta">{{.CommitCount}} commits &bull; +{{.LinesAdded}} / -{{.LinesDeleted}}</span>
+            </div>
+            <span class="repo-badge">Ingested</span>
+        </li>
+        {{end}}
+    </ul>
+{{end}}
