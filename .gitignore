@@ -7,3 +7,4 @@ nginx/ssl/
 session.txt
 api.txt
 test_auth.sh
+certbot/
