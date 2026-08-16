@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS facts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_facts_repo_email ON facts(repo_rehash, email);
+CREATE INDEX IF NOT EXISTS idx_facts_email ON facts(email);
+CREATE INDEX IF NOT EXISTS idx_facts_email_code ON facts(email, code);
 
 CREATE TABLE IF NOT EXISTS authors (
     email TEXT PRIMARY KEY,

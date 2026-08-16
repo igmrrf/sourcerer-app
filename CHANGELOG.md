@@ -33,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Credential Externalization (C4)**: Replaced hardcoded database and service credentials across Docker configuration with environment variable substitutions.
 - **Sentry DSN Secret Sanitization (C5)**: Removed hardcoded Sentry DSN token in `cli/build.gradle`, switching to dynamic `System.getenv('SENTRY_DSN')` resolution.
 - **API Ingestion Authentication (H1)**: Added `apiAuthMiddleware` enforcing internal authentication tokens via `Authorization: Bearer <token>` headers or `Token` cookies on all `/api/*` endpoints.
-- **HTMX CDN SRI Integrity Hash (M2)**: Added Subresource Integrity (`integrity`) and `crossorigin` attributes to external HTMX script tags to mitigate CDN compromise risks.
+- **HTMX CDN SRI Integrity Hash (M2)**: Corrected Subresource Integrity (`integrity`) SHA-384 hash (`D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC`) on `dist/htmx.min.js` to resolve browser script blocking that caused infinite dashboard loading skeletons.
 - **Docker Compose Container Hardening**: Configured PostgreSQL `pg_isready` health checks and ensured backend container waits for `service_healthy`.
 
 ### Bug Fixes & Improvements
@@ -44,7 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Database Transaction Error Handling (H6)**: Added explicit error checking on `tx.Commit()` in all protobuf ingestion handlers (`/api/commits`, `/api/facts`, `/api/authors`), returning HTTP 500 on commit failure.
 - **CORS Handling (H7)**: Added CORS middleware handling preflight `OPTIONS` requests and required `Access-Control-*` response headers.
 - **Database Query Error Logging (M3)**: Added structured error logs for all database queries and transactions.
-- **Database Performance Indexing (M4)**: Added index `idx_commits_author_email` on `commits(author_email)` to eliminate full table scans during author metric lookups.
+- **Database Performance Indexing (M4)**: Added index `idx_commits_author_email` on `commits(author_email)` and `idx_facts_email` / `idx_facts_email_code` on `facts(email)` to eliminate full table scans during author metric lookups.
 - **Development Script Hardening (M5)**: Updated `backend/run.sh` to run `go run .` with automatic database migration.
 - **Repository Binary Cleanup (M6)**: Added `sourcerer-backend` binary artifacts to `.gitignore`.
 - **Dashboard Polling Optimization (M7)**: Reduced HTMX polling frequency from every 5 seconds to every 30 seconds to minimize database query load.
