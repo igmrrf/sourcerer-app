@@ -18,12 +18,18 @@
 | `backend/templates/stats.html` | Redesigned | Hero commit velocity telemetry, glowing emerald/rose metric diff cards |
 | `backend/templates/languages.html` | Redesigned | Segmented glowing progress bar with purple-centric spectrum, interactive language rows |
 | `backend/templates/facts.html` | Redesigned | Glassmorphic habit cards with themed icons, glowing purple badges, and behavior descriptions |
-| `backend/templates/repos.html` | Redesigned | Repository cards with monospace hashes, commit count pills, and line diff metrics |
-| `backend/templates/profile.html` | Redesigned | Public portfolio showcase, glowing hero avatar, 4-card metric overview, and interactive README embed hub |
-| `backend/main.go` | Updated | `generateBadgeSVG` palette & card background updated to purple theme |
-| `CHANGELOG.md` | Updated | Documented v1.1.0 frontend redesign release |
+| `backend/templates/repo.html` | Created | Public repository showcase with 3-tier contributor grid, language breakdown, and README Embed Hub |
+| `backend/templates/repos.html` | Updated | Added direct Hall of Fame navigation buttons to repository cards |
+| `backend/main.go` | Updated | Added `getHallOfFameData`, `generateHallOfFameSVG`, and Hall of Fame HTML/SVG/JSON API routes |
+| `backend/main_test.go` | Updated | Added automated tests for Hall of Fame SVG generation and data models |
+| `backend/schema.sql` | Updated | Added composite indexes `idx_commits_repo_date` and `idx_commits_repo_author` |
+| `CHANGELOG.md` | Updated | Documented Hall of Fame release |
 
 ---
 
 ## Automated Verification
-- `go test -v ./...` in `backend/` executed with 100% test pass rate across all unit tests including cookie signing, session handling, API authorization, and SVG generation.
+- `go test -v ./...` in `backend/` executed with 100% test pass rate across all unit tests including cookie signing, session handling, API authorization, SVG profile badge, and Hall of Fame SVG generator.
+- Live HTTP endpoints verified:
+  - `GET /api/hall-of-fame/{repo}` -> HTTP 200 JSON with contributor tiers and AST languages.
+  - `GET /hall-of-fame/{repo}.svg` -> HTTP 200 valid XML/SVG with dark purple theme and avatars.
+  - `GET /r/{repo}` -> HTTP 200 HTML showcase with interactive README embed hub.

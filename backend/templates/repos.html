@@ -24,9 +24,11 @@
                     <span style="color: var(--accent-rose);">-{{.LinesDeleted}}</span>
                 </div>
             </div>
-            <span style="font-family: var(--font-mono); font-size: 0.675rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: rgba(139, 92, 246, 0.15); color: var(--primary-light); border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.2rem 0.55rem; border-radius: var(--radius-full); flex-shrink: 0;">
-                Ingested
-            </span>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+                <a href="/r/{{.Rehash}}" class="btn btn-outline" style="min-height: 28px; padding: 0.25rem 0.65rem; font-size: 0.725rem; font-weight: 700; border-radius: var(--radius-sm);" title="View Contributor Hall of Fame" target="_blank">
+                    &#127775; Hall of Fame
+                </a>
+            </div>
         </li>
         {{end}}
     </ul>

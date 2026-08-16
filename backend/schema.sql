@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS commits (
 CREATE INDEX IF NOT EXISTS idx_commits_repo ON commits(repo_rehash);
 CREATE INDEX IF NOT EXISTS idx_commits_date ON commits(date);
 CREATE INDEX IF NOT EXISTS idx_commits_author_email ON commits(author_email);
+CREATE INDEX IF NOT EXISTS idx_commits_repo_date ON commits(repo_rehash, date);
+CREATE INDEX IF NOT EXISTS idx_commits_repo_author ON commits(repo_rehash, author_email);
 
 CREATE TABLE IF NOT EXISTS commit_stats (
     id SERIAL PRIMARY KEY,

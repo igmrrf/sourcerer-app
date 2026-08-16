@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hall of Fame — {{.RepoName}}</title>
+    <meta name="description" content="Contributor Hall of Fame, velocity tiers, and engineering analytics for repository {{.RepoName}} on Sourcerer.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            /* Palette: Deep Violet & Electric Purple Cyber-Intelligence */
+            --bg-base: #090514;
+            --bg-surface: #120d24;
+            --bg-surface-raised: #1a1336;
+            --bg-surface-hover: #241b4a;
+            --bg-glass: rgba(18, 13, 36, 0.82);
+            
+            --border-subtle: rgba(139, 92, 246, 0.16);
+            --border-card: rgba(139, 92, 246, 0.24);
+            --border-hover: rgba(168, 85, 247, 0.45);
+            --border-active: #8b5cf6;
+
+            --primary: #8b5cf6;
+            --primary-light: #a855f7;
+            --primary-dark: #6d28d9;
+            --primary-glow: rgba(139, 92, 246, 0.28);
+            --primary-glow-strong: rgba(168, 85, 247, 0.4);
+
+            --accent-gold: #f59e0b;
+            --accent-gold-glow: rgba(245, 158, 11, 0.2);
+            --accent-emerald: #10b981;
+            --accent-emerald-glow: rgba(16, 185, 129, 0.2);
+            --accent-rose: #f43f5e;
+            --accent-cyan: #06b6d4;
+
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+
+            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+            --radius-xs: 4px;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-full: 9999px;
+
+            --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(139, 92, 246, 0.15);
+            --shadow-glow: 0 0 25px -3px var(--primary-glow);
+            
+            --transition-smooth: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(ellipse 80% 50% at 50% -15%, rgba(139, 92, 246, 0.22), transparent 70%),
+                radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1), transparent 50%),
+                radial-gradient(circle at 10% 40%, rgba(168, 85, 247, 0.08), transparent 40%);
+            background-attachment: fixed;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 2.25rem 1.5rem 4.5rem;
+        }
+
+        /* Top Navigation */
+        nav {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-card);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 800;
+            font-size: 1.2rem;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-logo {
+            width: 34px;
+            height: 34px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            color: #ffffff;
+            box-shadow: 0 2px 10px var(--primary-glow);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #ffffff;
+            padding: 0.5rem 1.15rem;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-family: var(--font-sans);
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            min-height: 40px;
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--primary-glow-strong);
+        }
+
+        .btn-outline {
+            background: var(--bg-surface-raised);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-card);
+            box-shadow: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-surface-hover);
+            color: var(--text-primary);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        /* Hero Banner */
+        .hero-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-lg);
+            padding: 2.25rem;
+            margin-bottom: 2.25rem;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-gold), var(--primary-light), var(--accent-cyan));
+        }
+
+        .hero-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .hero-title-group h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .repo-badge {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary-light);
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid var(--border-card);
+            padding: 0.35rem 0.85rem;
+            border-radius: var(--radius-sm);
+            display: inline-block;
+            margin-top: 0.4rem;
+        }
+
+        /* 4-Stat Metric Row */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+        }
+
+        .metric-card {
+            background: var(--bg-surface-raised);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition-smooth);
+        }
+
+        .metric-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+            display: block;
+        }
+
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.1;
+        }
+
+        /* 3-Tier Grid */
+        .tiers-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.75rem;
+            margin-bottom: 2.25rem;
+        }
+
+        .tier-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tier-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .tier-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            letter-spacing: -0.01em;
+        }
+
+        .tier-tag {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.55rem;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+
+        .tier-top .tier-title { color: var(--accent-gold); }
+        .tier-top .tier-tag { background: rgba(245, 158, 11, 0.15); color: var(--accent-gold); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        .tier-trending .tier-title { color: var(--accent-rose); }
+        .tier-trending .tier-tag { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+
+        .tier-new .tier-title { color: var(--accent-emerald); }
+        .tier-new .tier-tag { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .contributor-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            flex-grow: 1;
+        }
+
+        .contributor-item {
+            background: var(--bg-surface-raised);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            transition: var(--transition-smooth);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .contributor-item:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-surface-hover);
+            transform: translateX(3px);
+        }
+
+        .contributor-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 0;
+        }
+
+        .avatar-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #ffffff;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .avatar-halo {
+            box-shadow: 0 0 0 2px var(--bg-surface-raised), 0 0 0 4px var(--primary-light), 0 0 12px var(--primary-glow-strong);
+        }
+
+        .contributor-names {
+            min-width: 0;
+        }
+
+        .contributor-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        .contributor-email {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: var(--font-mono);
+            display: block;
+        }
+
+        .commit-count-pill {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: var(--radius-sm);
+            background: rgba(139, 92, 246, 0.12);
+            color: var(--primary-light);
+            border: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        /* Languages Section */
+        .section-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-lg);
+            padding: 1.85rem;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 2.25rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-header h2 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Embed Hub */
+        .embed-hub {
+            background: linear-gradient(135deg, rgba(18, 13, 36, 0.95), rgba(9, 5, 20, 0.95));
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-lg);
+            padding: 2.25rem;
+            box-shadow: var(--shadow-card);
+            position: relative;
+        }
+
+        .embed-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .code-box {
+            position: relative;
+            margin-top: 0.85rem;
+        }
+
+        .code-box pre {
+            background: var(--bg-base);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem 3.5rem 1rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.6rem;
+            right: 0.6rem;
+            background: var(--bg-surface-raised);
+            border: 1px solid var(--border-card);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.35rem 0.7rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+
+        .preview-box {
+            background: var(--bg-base);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .preview-box img {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius-sm);
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #ffffff;
+            padding: 0.85rem 1.4rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px var(--primary-glow-strong);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: var(--transition-smooth);
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .tiers-grid { grid-template-columns: 1fr; }
+            .embed-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1.25rem 1rem 3rem; }
+            nav { flex-direction: column; align-items: stretch; gap: 1rem; }
+            .hero-title-group h1 { font-size: 1.5rem; }
+            .metrics-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav>
+            <a href="/" class="nav-brand">
+                <div class="nav-logo">&#9889;</div>
+                <span>Sourcerer</span>
+            </a>
+            <div class="nav-actions">
+                <a href="/" class="btn btn-outline">&larr; Back to Dashboard</a>
+                <a href="/hall-of-fame/{{.RepoRehash}}.svg" target="_blank" class="btn">&#128247; Raw SVG Badge</a>
+            </div>
+        </nav>
+
+        <!-- Repository Hero Card -->
+        <section class="hero-card">
+            <div class="hero-header">
+                <div class="hero-title-group">
+                    <h1>
+                        &#127775; Repository Hall of Fame
+                    </h1>
+                    <span class="repo-badge">{{.RepoRehash}}</span>
+                </div>
+                <a href="/hall-of-fame/{{.RepoRehash}}.svg" target="_blank" class="btn btn-outline">
+                    &#128170; Live Contributor Badge &rarr;
+                </a>
+            </div>
+
+            <!-- Telemetry Metrics -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Total Commits</span>
+                    <span class="metric-value">{{.TotalCommits}}</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Lines Added</span>
+                    <span class="metric-value" style="color: var(--accent-emerald);">+{{.TotalLinesAdded}}</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Lines Deleted</span>
+                    <span class="metric-value" style="color: var(--accent-rose);">-{{.TotalLinesDeleted}}</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Total Contributors</span>
+                    <span class="metric-value" style="color: var(--primary-light);">{{.TotalContributors}}</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3 Contributor Tiers -->
+        <main class="tiers-grid">
+            <!-- 1. Top Tier -->
+            <div class="tier-card tier-top">
+                <div class="tier-header">
+                    <span class="tier-title">&#127775; Top Contributors</span>
+                    <span class="tier-tag">ALL-TIME CORE</span>
+                </div>
+                {{if not .TopContributors}}
+                <div class="empty-state" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                    No commit records found.
+                </div>
+                {{else}}
+                <ul class="contributor-list">
+                    {{range .TopContributors}}
+                    <li>
+                        <a href="/p/{{.Email}}" class="contributor-item" title="View {{.Name}}'s profile">
+                            <div class="contributor-info">
+                                <div class="avatar-circle {{if .IsSourcerer}}avatar-halo{{end}}">
+                                    {{slice .Name 0 1}}
+                                </div>
+                                <div class="contributor-names">
+                                    <span class="contributor-name">{{.Name}}</span>
+                                    <span class="contributor-email">{{.Email}}</span>
+                                </div>
+                            </div>
+                            <span class="commit-count-pill">{{.Commits}} commits</span>
+                        </a>
+                    </li>
+                    {{end}}
+                </ul>
+                {{end}}
+            </div>
+
+            <!-- 2. Trending Tier -->
+            <div class="tier-card tier-trending">
+                <div class="tier-header">
+                    <span class="tier-title">&#128293; Trending Activity</span>
+                    <span class="tier-tag">RECENT VELOCITY</span>
+                </div>
+                {{if not .TrendingContributors}}
+                <div class="empty-state" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                    No recent velocity commits.
+                </div>
+                {{else}}
+                <ul class="contributor-list">
+                    {{range .TrendingContributors}}
+                    <li>
+                        <a href="/p/{{.Email}}" class="contributor-item" title="View {{.Name}}'s profile">
+                            <div class="contributor-info">
+                                <div class="avatar-circle {{if .IsSourcerer}}avatar-halo{{end}}">
+                                    {{slice .Name 0 1}}
+                                </div>
+                                <div class="contributor-names">
+                                    <span class="contributor-name">{{.Name}}</span>
+                                    <span class="contributor-email">{{.Email}}</span>
+                                </div>
+                            </div>
+                            <span class="commit-count-pill" style="color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.3); background: rgba(244, 63, 94, 0.1);">{{.Commits}} recent</span>
+                        </a>
+                    </li>
+                    {{end}}
+                </ul>
+                {{end}}
+            </div>
+
+            <!-- 3. New Tier -->
+            <div class="tier-card tier-new">
+                <div class="tier-header">
+                    <span class="tier-title">&#127793; New Contributors</span>
+                    <span class="tier-tag">NEW ARRIVALS</span>
+                </div>
+                {{if not .NewContributors}}
+                <div class="empty-state" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                    No new arrivals detected.
+                </div>
+                {{else}}
+                <ul class="contributor-list">
+                    {{range .NewContributors}}
+                    <li>
+                        <a href="/p/{{.Email}}" class="contributor-item" title="View {{.Name}}'s profile">
+                            <div class="contributor-info">
+                                <div class="avatar-circle {{if .IsSourcerer}}avatar-halo{{end}}">
+                                    {{slice .Name 0 1}}
+                                </div>
+                                <div class="contributor-names">
+                                    <span class="contributor-name">{{.Name}}</span>
+                                    <span class="contributor-email">{{.Email}}</span>
+                                </div>
+                            </div>
+                            <span class="commit-count-pill" style="color: var(--accent-emerald); border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.1);">Joined</span>
+                        </a>
+                    </li>
+                    {{end}}
+                </ul>
+                {{end}}
+            </div>
+        </main>
+
+        <!-- Technology Stack Section -->
+        {{if .Languages}}
+        <section class="section-card">
+            <div class="section-header">
+                <h2>&#9881; Repository Technology Stack</h2>
+                <span class="repo-badge">AST TELEMETRY</span>
+            </div>
+            <div style="display: flex; height: 12px; border-radius: var(--radius-full); overflow: hidden; background-color: var(--bg-base); border: 1px solid var(--border-subtle); gap: 2px; padding: 1px; margin-bottom: 1.25rem;">
+                {{range $i, $lang := .Languages}}
+                <div style="width: {{$lang.Percentage}}%; border-radius: 4px; background-color: {{if eq $i 0}}#8b5cf6{{else if eq $i 1}}#a855f7{{else if eq $i 2}}#06b6d4{{else if eq $i 3}}#10b981{{else if eq $i 4}}#f59e0b{{else}}#f43f5e{{end}};" 
+                     title="{{$lang.Tech}}: {{$lang.Percentage}}%"></div>
+                {{end}}
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem;">
+                {{range $i, $lang := .Languages}}
+                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); padding: 0.75rem 1rem; border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 0.55rem;">
+                        <span style="width: 10px; height: 10px; border-radius: 50%; display: inline-block; background-color: {{if eq $i 0}}#8b5cf6{{else if eq $i 1}}#a855f7{{else if eq $i 2}}#06b6d4{{else if eq $i 3}}#10b981{{else if eq $i 4}}#f59e0b{{else}}#f43f5e{{end}};"></span>
+                        <span style="font-weight: 600; font-size: 0.875rem;">{{$lang.Tech}}</span>
+                    </div>
+                    <span style="font-family: var(--font-mono); font-weight: 700; color: var(--primary-light);">{{$lang.Percentage}}%</span>
+                </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
+
+        <!-- README Embed Hub -->
+        <section class="embed-hub">
+            <div class="section-header">
+                <h2>&#128172; Embed in your GitHub README</h2>
+                <span class="repo-badge">MARKDOWN &amp; HTML</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                Add the live Hall of Fame badge to your repository's <code style="font-family: var(--font-mono); color: var(--primary-light);">README.md</code> to celebrate contributors and maintain live velocity metrics.
+            </p>
+
+            <div class="embed-grid">
+                <div>
+                    <div>
+                        <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary);">Markdown Snippet</span>
+                        <div class="code-box">
+                            <pre id="md-code">[![Sourcerer Hall of Fame](https://sourcerer.io/hall-of-fame/{{.RepoRehash}}.svg)](https://sourcerer.io/r/{{.RepoRehash}})</pre>
+                            <button class="copy-btn" onclick="copySnippet('md-code', 'Markdown')">Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.25rem;">
+                        <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary);">HTML Snippet</span>
+                        <div class="code-box">
+                            <pre id="html-code">&lt;a href="https://sourcerer.io/r/{{.RepoRehash}}"&gt;&lt;img src="https://sourcerer.io/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer Hall of Fame" /&gt;&lt;/a&gt;</pre>
+                            <button class="copy-btn" onclick="copySnippet('html-code', 'HTML')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.85rem; display: block;">Live SVG Preview</span>
+                    <div class="preview-box">
+                        <img src="/hall-of-fame/{{.RepoRehash}}.svg" alt="Hall of Fame Preview">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        &#10003; <span id="toast-text">Snippet copied to clipboard!</span>
+    </div>
+
+    <script>
+        function copySnippet(elementId, type) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(type + ' snippet copied to clipboard!');
+            }).catch(() => {
+                showToast('Failed to copy snippet');
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastText = document.getElementById('toast-text');
+            toastText.innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

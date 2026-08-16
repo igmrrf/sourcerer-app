@@ -163,3 +163,64 @@ func TestGenerateBadgeSVG(t *testing.T) {
 	}
 }
 
+func TestGenerateHallOfFameSVG(t *testing.T) {
+	data := HallOfFameData{
+		RepoRehash:        "sourcerer-io/sourcerer-app",
+		RepoName:          "sourcerer-io/sourcerer-app",
+		TotalCommits:      1420,
+		TotalLinesAdded:   250000,
+		TotalLinesDeleted: 45000,
+		TotalContributors: 18,
+		TopContributors: []ContributorStat{
+			{Name: "Alice Developer", Email: "alice@example.com", Commits: 450, LinesAdded: 90000, IsSourcerer: true},
+			{Name: "Bob Architect", Email: "bob@example.com", Commits: 280, LinesAdded: 50000, IsSourcerer: false},
+		},
+		TrendingContributors: []ContributorStat{
+			{Name: "Charlie Coder", Email: "charlie@example.com", Commits: 42, IsSourcerer: true},
+		},
+		NewContributors: []ContributorStat{
+			{Name: "Dave Newbie", Email: "dave@example.com", Commits: 5, IsSourcerer: false},
+		},
+		Languages: []LangStat{
+			{Tech: "Go", Lines: 120000, Percentage: 60},
+			{Tech: "TypeScript", Lines: 60000, Percentage: 30},
+			{Tech: "Kotlin", Lines: 20000, Percentage: 10},
+		},
+	}
+
+	svg := generateHallOfFameSVG(data)
+	if len(svg) == 0 {
+		t.Fatal("generateHallOfFameSVG returned empty byte slice")
+	}
+
+	svgStr := string(svg)
+	if !strings.Contains(svgStr, "<svg") || !strings.Contains(svgStr, "</svg>") {
+		t.Fatal("generateHallOfFameSVG output does not contain valid svg tags")
+	}
+
+	if !strings.Contains(svgStr, "SOURCERER HALL OF FAME") {
+		t.Fatal("generateHallOfFameSVG output missing Hall of Fame title")
+	}
+
+	if !strings.Contains(svgStr, "sourcerer-io/sourcerer-app") {
+		t.Fatal("generateHallOfFameSVG output missing repo name")
+	}
+
+	if !strings.Contains(svgStr, "Alice Developer") || !strings.Contains(svgStr, "Bob Architect") {
+		t.Fatal("generateHallOfFameSVG output missing top contributors")
+	}
+
+	if !strings.Contains(svgStr, "Charlie Coder") {
+		t.Fatal("generateHallOfFameSVG output missing trending contributor")
+	}
+
+	if !strings.Contains(svgStr, "Dave Newbie") {
+		t.Fatal("generateHallOfFameSVG output missing new contributor")
+	}
+
+	if !strings.Contains(svgStr, "Go") || !strings.Contains(svgStr, "TypeScript") {
+		t.Fatal("generateHallOfFameSVG output missing language stats")
+	}
+}
+
+

@@ -9,6 +9,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -415,6 +416,13 @@ func main() {
 	// Dynamic SVG Profile Badge for GitHub READMEs
 	r.Get("/badge/{identifier}", handleBadgeSVG)
 	r.Get("/badge/{identifier}.svg", handleBadgeSVG)
+
+	// Repository Hall of Fame Routes (Feature: hall-of-fame)
+	r.Get("/hall-of-fame/{repo}", handleHallOfFameHTML)
+	r.Get("/hall-of-fame/{repo}.svg", handleHallOfFameSVG)
+	r.Get("/r/{repo}", handleHallOfFameHTML)
+	r.Get("/r/{repo}.svg", handleHallOfFameSVG)
+	r.Get("/api/hall-of-fame/{repo}", handleHallOfFameAPI)
 
 
 
@@ -1005,6 +1013,365 @@ func handleBadgeSVG(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(svgBytes)
 }
+
+// Hall of Fame Data Structures & Handlers (Feature: hall-of-fame)
+
+type ContributorStat struct {
+	Email        string `json:"email"`
+	Name         string `json:"name"`
+	Commits      int    `json:"commits"`
+	LinesAdded   int    `json:"lines_added,omitempty"`
+	LinesDeleted int    `json:"lines_deleted,omitempty"`
+	IsSourcerer  bool   `json:"is_sourcerer"`
+}
+
+type HallOfFameData struct {
+	RepoRehash           string            `json:"repo_rehash"`
+	RepoName             string            `json:"repo_name"`
+	TotalCommits         int               `json:"total_commits"`
+	TotalLinesAdded      int               `json:"total_lines_added"`
+	TotalLinesDeleted    int               `json:"total_lines_deleted"`
+	TotalContributors    int               `json:"total_contributors"`
+	TopContributors      []ContributorStat `json:"top"`
+	TrendingContributors []ContributorStat `json:"trending"`
+	NewContributors      []ContributorStat `json:"new"`
+	Languages            []LangStat        `json:"languages"`
+}
+
+func getHallOfFameData(repoRehash string) HallOfFameData {
+	data := HallOfFameData{
+		RepoRehash: repoRehash,
+		RepoName:   repoRehash,
+	}
+
+	if db == nil || repoRehash == "" {
+		return data
+	}
+
+	// 1. Overall stats
+	_ = db.QueryRow(`
+		SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0), COUNT(DISTINCT author_email)
+		FROM commits
+		WHERE repo_rehash = $1`, repoRehash).Scan(&data.TotalCommits, &data.TotalLinesAdded, &data.TotalLinesDeleted, &data.TotalContributors)
+
+	// 2. All-time Top Contributors
+	topRows, err := db.Query(`
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
+		       COUNT(*) as commit_count, COALESCE(SUM(c.num_lines_added), 0) as added, 
+		       COALESCE(SUM(c.num_lines_deleted), 0) as deleted,
+		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		FROM commits c
+		LEFT JOIN authors a ON a.email = c.author_email
+		LEFT JOIN users u ON u.email = c.author_email
+		WHERE c.repo_rehash = $1 AND c.author_email IS NOT NULL AND c.author_email != ''
+		GROUP BY c.author_email
+		ORDER BY commit_count DESC
+		LIMIT 6`, repoRehash)
+	if err == nil {
+		defer topRows.Close()
+		for topRows.Next() {
+			var cs ContributorStat
+			if err := topRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer); err == nil {
+				data.TopContributors = append(data.TopContributors, cs)
+			}
+		}
+	}
+
+	// 3. Determine recent active epoch window
+	var maxDate int64
+	_ = db.QueryRow("SELECT COALESCE(MAX(date), 0) FROM commits WHERE repo_rehash = $1", repoRehash).Scan(&maxDate)
+
+	now := time.Now().Unix()
+	cutoff := now - (7 * 86400) // Default 7 days
+	// If repository has no commits in the last 7 days, scale relative to latest commit
+	if maxDate > 0 && maxDate < cutoff {
+		cutoff = maxDate - (30 * 86400) // 30 days prior to latest commit
+	}
+
+	// 4. Trending Contributors (velocity in recent active window)
+	trendRows, err := db.Query(`
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
+		       COUNT(*) as commit_count, COALESCE(SUM(c.num_lines_added), 0) as added, 
+		       COALESCE(SUM(c.num_lines_deleted), 0) as deleted,
+		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		FROM commits c
+		LEFT JOIN authors a ON a.email = c.author_email
+		LEFT JOIN users u ON u.email = c.author_email
+		WHERE c.repo_rehash = $1 AND c.date >= $2 AND c.author_email IS NOT NULL AND c.author_email != ''
+		GROUP BY c.author_email
+		ORDER BY commit_count DESC
+		LIMIT 6`, repoRehash, cutoff)
+	if err == nil {
+		defer trendRows.Close()
+		for trendRows.Next() {
+			var cs ContributorStat
+			if err := trendRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.LinesAdded, &cs.LinesDeleted, &cs.IsSourcerer); err == nil {
+				data.TrendingContributors = append(data.TrendingContributors, cs)
+			}
+		}
+	}
+
+	// 5. New Contributors (initial commit in this repo within cutoff)
+	newRows, err := db.Query(`
+		SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
+		       COUNT(*) as commit_count,
+		       bool_or(u.email IS NOT NULL) as is_sourcerer
+		FROM commits c
+		LEFT JOIN authors a ON a.email = c.author_email
+		LEFT JOIN users u ON u.email = c.author_email
+		WHERE c.repo_rehash = $1 AND c.author_email IS NOT NULL AND c.author_email != ''
+		GROUP BY c.author_email
+		HAVING MIN(c.date) >= $2
+		ORDER BY MIN(c.date) DESC
+		LIMIT 6`, repoRehash, cutoff)
+	if err == nil {
+		defer newRows.Close()
+		for newRows.Next() {
+			var cs ContributorStat
+			if err := newRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.IsSourcerer); err == nil {
+				data.NewContributors = append(data.NewContributors, cs)
+			}
+		}
+	}
+	// Fallback if no new contributors within cutoff: fetch latest first-time joiners
+	if len(data.NewContributors) == 0 {
+		fallbackNewRows, err := db.Query(`
+			SELECT c.author_email, COALESCE(MAX(a.name), MAX(c.author_name), c.author_email) as name, 
+			       COUNT(*) as commit_count,
+			       bool_or(u.email IS NOT NULL) as is_sourcerer
+			FROM commits c
+			LEFT JOIN authors a ON a.email = c.author_email
+			LEFT JOIN users u ON u.email = c.author_email
+			WHERE c.repo_rehash = $1 AND c.author_email IS NOT NULL AND c.author_email != ''
+			GROUP BY c.author_email
+			ORDER BY MIN(c.date) DESC
+			LIMIT 6`, repoRehash)
+		if err == nil {
+			defer fallbackNewRows.Close()
+			for fallbackNewRows.Next() {
+				var cs ContributorStat
+				if err := fallbackNewRows.Scan(&cs.Email, &cs.Name, &cs.Commits, &cs.IsSourcerer); err == nil {
+					data.NewContributors = append(data.NewContributors, cs)
+				}
+			}
+		}
+	}
+
+	// 6. Repo Language breakdown
+	langRows, err := db.Query(`
+		SELECT s.tech, SUM(s.num_lines_added) as lines
+		FROM commit_stats s
+		JOIN commits c ON c.rehash = s.commit_rehash
+		WHERE c.repo_rehash = $1
+		GROUP BY s.tech
+		ORDER BY lines DESC
+		LIMIT 5`, repoRehash)
+	if err == nil {
+		defer langRows.Close()
+		totalLines := 0
+		for langRows.Next() {
+			var s LangStat
+			if err := langRows.Scan(&s.Tech, &s.Lines); err == nil && s.Tech != "" {
+				data.Languages = append(data.Languages, s)
+				totalLines += s.Lines
+			}
+		}
+		if totalLines > 0 {
+			for i := range data.Languages {
+				data.Languages[i].Percentage = int((float64(data.Languages[i].Lines) / float64(totalLines)) * 100.0)
+				if data.Languages[i].Percentage == 0 && data.Languages[i].Lines > 0 {
+					data.Languages[i].Percentage = 1
+				}
+			}
+		}
+	}
+
+	return data
+}
+
+func generateHallOfFameSVG(data HallOfFameData) []byte {
+	palette := []string{"#8b5cf6", "#a855f7", "#06b6d4", "#10b981", "#f59e0b"}
+
+	var langBars strings.Builder
+	var langLegend strings.Builder
+
+	currentX := 25.0
+	barWidthTotal := 790.0
+
+	for i, l := range data.Languages {
+		if i >= 5 {
+			break
+		}
+		color := palette[i%len(palette)]
+		w := (float64(l.Percentage) / 100.0) * barWidthTotal
+		if w < 4 && l.Percentage > 0 {
+			w = 4
+		}
+		langBars.WriteString(fmt.Sprintf(`<rect x="%.1f" y="295" width="%.1f" height="8" rx="3" fill="%s" />`, currentX, w, color))
+		currentX += w + 1
+
+		if i < 4 {
+			legendX := 25 + (i * 140)
+			langLegend.WriteString(fmt.Sprintf(`
+				<circle cx="%d" cy="325" r="4" fill="%s"/>
+				<text x="%d" y="329" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" font-weight="500">%s <tspan fill="#64748b">%d%%</tspan></text>`,
+				legendX, color, legendX+10, template.HTMLEscapeString(l.Tech), l.Percentage))
+		}
+	}
+
+	renderTierList := func(list []ContributorStat, startX int, accentColor string, badgeSuffix string) string {
+		var b strings.Builder
+		if len(list) == 0 {
+			b.WriteString(fmt.Sprintf(`<text x="%d" y="145" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-style="italic">No contributors yet</text>`, startX))
+			return b.String()
+		}
+
+		for i, c := range list {
+			if i >= 3 {
+				break
+			}
+			rowY := 115 + (i * 48)
+			initial := "?"
+			if len(c.Name) > 0 {
+				initial = strings.ToUpper(string([]rune(c.Name)[0]))
+			}
+
+			displayName := c.Name
+			if len(displayName) > 16 {
+				displayName = displayName[:14] + "…"
+			}
+
+			haloAttr := ""
+			if c.IsSourcerer {
+				haloAttr = fmt.Sprintf(`<circle cx="%d" cy="%d" r="16" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="2 2" />`, startX+16, rowY+12)
+			}
+
+			b.WriteString(fmt.Sprintf(`
+				<g transform="translate(%d, %d)">
+					<!-- Row Card -->
+					<rect width="250" height="42" rx="8" fill="#120d24" stroke="#1a1336" stroke-width="1"/>
+					<!-- Avatar -->
+					%s
+					<circle cx="20" cy="21" r="13" fill="#1c1538" stroke="%s" stroke-width="1"/>
+					<text x="20" y="25" fill="#f8fafc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" font-weight="700" text-anchor="middle">%s</text>
+					<!-- Name -->
+					<text x="42" y="24" fill="#f8fafc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="600">%s</text>
+					<!-- Stat Badge -->
+					<rect x="180" y="11" width="60" height="20" rx="4" fill="%s" fill-opacity="0.12" stroke="%s" stroke-opacity="0.3" stroke-width="1"/>
+					<text x="210" y="24" fill="%s" font-family="ui-monospace,Menlo,monospace" font-size="10" font-weight="700" text-anchor="middle">%d %s</text>
+				</g>`,
+				startX, rowY,
+				haloAttr, accentColor, template.HTMLEscapeString(initial),
+				template.HTMLEscapeString(displayName),
+				accentColor, accentColor, accentColor, c.Commits, badgeSuffix,
+			))
+		}
+		return b.String()
+	}
+
+	topListSVG := renderTierList(data.TopContributors, 25, "#f59e0b", "top")
+	trendingListSVG := renderTierList(data.TrendingContributors, 295, "#f43f5e", "rec")
+	newListSVG := renderTierList(data.NewContributors, 565, "#10b981", "new")
+
+	repoDisplay := data.RepoRehash
+	if len(repoDisplay) > 28 {
+		repoDisplay = repoDisplay[:26] + "…"
+	}
+
+	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="840" height="350" viewBox="0 0 840 350" fill="none">
+	<style>
+		.title { font: 800 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #a855f7; letter-spacing: 0.5px; }
+		.repo-tag { font: 700 11px ui-monospace, Menlo, monospace; fill: #cbd5e1; }
+		.col-header { font: 700 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+		.stat-chip { font: 600 11px ui-monospace, Menlo, monospace; fill: #94a3b8; }
+	</style>
+	
+	<!-- Background Frame -->
+	<rect width="840" height="350" rx="14" fill="#090514" stroke="#241b4a" stroke-width="1.5"/>
+	
+	<!-- Header Bar -->
+	<g transform="translate(25, 22)">
+		<text class="title" y="14">&#9889; SOURCERER HALL OF FAME</text>
+		
+		<!-- Repo Tag -->
+		<rect x="235" y="0" width="220" height="22" rx="6" fill="#1a1336" stroke="#241b4a" stroke-width="1"/>
+		<text class="repo-tag" x="245" y="15">%s</text>
+		
+		<!-- Metric Badges -->
+		<text class="stat-chip" x="650" y="15">%d Commits &bull; %d Contributors</text>
+	</g>
+	
+	<!-- Divider -->
+	<line x1="25" y1="58" x2="815" y2="58" stroke="#1a1336" stroke-width="1"/>
+
+	<!-- Column Headers -->
+	<!-- Top -->
+	<text class="col-header" x="25" y="90" fill="#f59e0b">&#127775; TOP CONTRIBUTORS</text>
+	<!-- Trending -->
+	<text class="col-header" x="295" y="90" fill="#f43f5e">&#128293; TRENDING VELOCITY</text>
+	<!-- New -->
+	<text class="col-header" x="565" y="90" fill="#10b981">&#127793; NEW CONTRIBUTORS</text>
+
+	<!-- Tier Content Rows -->
+	%s
+	%s
+	%s
+
+	<!-- Language Bar Background -->
+	<rect x="25" y="295" width="790" height="8" rx="4" fill="#1a1336"/>
+	<!-- Language Bar Segments -->
+	%s
+	<!-- Language Legend -->
+	%s
+	
+	<!-- Footer Branding -->
+	<text x="815" y="329" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10" font-weight="600" text-anchor="end">sourcerer.io/r/%s</text>
+</svg>`,
+		template.HTMLEscapeString(repoDisplay),
+		data.TotalCommits, data.TotalContributors,
+		topListSVG, trendingListSVG, newListSVG,
+		langBars.String(),
+		langLegend.String(),
+		template.HTMLEscapeString(repoDisplay),
+	)
+
+	return []byte(svg)
+}
+
+func handleHallOfFameSVG(w http.ResponseWriter, r *http.Request) {
+	repoRehash := chi.URLParam(r, "repo")
+	repoRehash = strings.TrimSuffix(repoRehash, ".svg")
+
+	data := getHallOfFameData(repoRehash)
+	svgBytes := generateHallOfFameSVG(data)
+
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=1800")
+	w.WriteHeader(http.StatusOK)
+	w.Write(svgBytes)
+}
+
+func handleHallOfFameHTML(w http.ResponseWriter, r *http.Request) {
+	repoRehash := chi.URLParam(r, "repo")
+	repoRehash = strings.TrimSuffix(repoRehash, ".svg")
+
+	data := getHallOfFameData(repoRehash)
+	renderTemplate(w, "repo.html", data)
+}
+
+func handleHallOfFameAPI(w http.ResponseWriter, r *http.Request) {
+	repoRehash := chi.URLParam(r, "repo")
+	repoRehash = strings.TrimSuffix(repoRehash, ".svg")
+
+	data := getHallOfFameData(repoRehash)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("Failed to encode Hall of Fame API response", "error", err)
+	}
+}
+
 
 
 

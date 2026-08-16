@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [1.1.0] - 2026-08-16
 
 ### Added
+- **Repository Hall of Fame (Feature 1 & 2)**: Added automated contributor recognition with 3-tier velocity breakdown (**Top Contributors**, **Trending Velocity**, and **New Arrivals**), live README SVG badge generation (`/hall-of-fame/{repo}.svg` and `/r/{repo}.svg`), public repository showcase page (`/r/{repo}`), and JSON API (`/api/hall-of-fame/{repo}`).
 - **Modern Purple Frontend Redesign**: Full visual and architectural redesign with *Deep Violet Cyber-Intelligence* aesthetic thesis, responsive grid structure for desktop and mobile, Google Fonts (`Plus Jakarta Sans` & `JetBrains Mono`), glowing telemetry cards, interactive embed hub, and unified purple design tokens (`#8b5cf6`, `#7c3aed`, `#090514`).
 - **Dynamic Public Developer Profiles**: Shareable public profiles accessible at `/u/{username}` and `/p/{email}` displaying hero banners, contributor metrics, language distribution progress bars, repository breakdowns, and coding habits.
 - **Dynamic SVG Badges**: Endpoint at `/badge/{identifier}.svg` generating cache-enabled (`Cache-Control: max-age=1800`) SVG cards suitable for embedding directly in GitHub READMEs.
