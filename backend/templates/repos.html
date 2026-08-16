@@ -1,15 +1,32 @@
-<h2>Analyzed Repositories</h2>
+<div class="card-header-row">
+    <h2>&#128193; Repositories</h2>
+    <span class="card-tag">INDEXED</span>
+</div>
+
 {{if not .}}
-    <p class="empty-state">No repositories analyzed yet.</p>
+    <div class="empty-state">
+        <div class="empty-icon">&#128193;</div>
+        <p>No repositories analyzed yet.</p>
+        <span style="font-size: 0.8rem; color: var(--text-dim);">Repositories will appear automatically as they are processed.</span>
+    </div>
 {{else}}
-    <ul class="repo-list">
+    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.65rem; overflow-y: auto; max-height: 200px; padding-right: 0.25rem;">
         {{range .}}
-        <li class="repo-item">
-            <div class="repo-info">
-                <span class="repo-name">{{.Rehash}}</span>
-                <span class="repo-meta">{{.CommitCount}} commits &bull; +{{.LinesAdded}} / -{{.LinesDeleted}}</span>
+        <li style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface-raised); border: 1px solid var(--border-subtle); padding: 0.7rem 0.95rem; border-radius: var(--radius-md); transition: var(--transition-smooth); gap: 0.75rem;">
+            <div style="min-width: 0; display: flex; flex-direction: column; gap: 0.2rem;">
+                <span style="font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{.Rehash}}
+                </span>
+                <div style="display: flex; align-items: center; gap: 0.65rem; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">
+                    <span>{{.CommitCount}} commits</span>
+                    <span>&bull;</span>
+                    <span style="color: var(--accent-emerald);">+{{.LinesAdded}}</span>
+                    <span style="color: var(--accent-rose);">-{{.LinesDeleted}}</span>
+                </div>
             </div>
-            <span class="repo-badge">Ingested</span>
+            <span style="font-family: var(--font-mono); font-size: 0.675rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: rgba(139, 92, 246, 0.15); color: var(--primary-light); border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.2rem 0.55rem; border-radius: var(--radius-full); flex-shrink: 0;">
+                Ingested
+            </span>
         </li>
         {{end}}
     </ul>

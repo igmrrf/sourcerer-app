@@ -904,7 +904,7 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 		name = "Sourcerer Engineer"
 	}
 
-	palette := []string{"#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"}
+	palette := []string{"#8b5cf6", "#a855f7", "#06b6d4", "#10b981", "#f59e0b"}
 
 	var langBars strings.Builder
 	var langLegend strings.Builder
@@ -940,10 +940,10 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 		.stat-val { font: 700 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #f8fafc; }
 		.stat-label { font: 600 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
 		.added { fill: #10b981; }
-		.deleted { fill: #ef4444; }
-		.brand { font: 800 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #3b82f6; }
+		.deleted { fill: #f43f5e; }
+		.brand { font: 800 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #a855f7; }
 	</style>
-	<rect width="495" height="195" rx="12" fill="#0b0f19" stroke="#1e293b" stroke-width="1.5"/>
+	<rect width="495" height="195" rx="12" fill="#090514" stroke="#241b4a" stroke-width="1.5"/>
 	
 	<!-- Header -->
 	<g transform="translate(25, 25)">
@@ -968,7 +968,7 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 	</g>
 	
 	<!-- Language Bar Background -->
-	<rect x="25" y="138" width="445" height="10" rx="5" fill="#1e293b"/>
+	<rect x="25" y="138" width="445" height="10" rx="5" fill="#1a1336"/>
 	<!-- Language Bar Segments -->
 	%s
 	<!-- Language Legend -->

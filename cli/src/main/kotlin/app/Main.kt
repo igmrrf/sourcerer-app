@@ -6,6 +6,8 @@ package app
 import app.api.ServerApi
 import app.config.FileConfigurator
 import app.model.LocalRepo
+import app.model.User
+import app.model.UserEmail
 import app.ui.ConsoleUi
 import app.utils.CommandConfig
 import app.utils.CommandAdd
@@ -192,11 +194,19 @@ class Main(argv: Array<String>) {
                 localRepo.processEntryId = process.entries[0].id
             }
 
+            val user = if (options.username.isNotEmpty()) {
+                User(emails = hashSetOf(UserEmail(email = options.username, primary = true, verified = true)))
+            } else {
+                User()
+            }
+            configurator.setUser(user)
+
             try {
                 app.hashers.RepoHasher(api, configurator).update(localRepo)
                 Logger.print("Hashing completed.")
             } catch (e: Throwable) {
-                Logger.error(e, "Error while hashing")
+                e.printStackTrace()
+                Logger.error(e, "Error while hashing: ${e.message ?: e.javaClass.name}")
             }
         } else {
             Logger.error(IllegalArgumentException("No valid git repository found at specified path $pathStr"), "Invalid git repository")

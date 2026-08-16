@@ -43,10 +43,14 @@ class ClassifierManager {
                 Logger.info { "$libId evaluator ready" }
             }
 
+            val classifier = cache[libId] ?: return@filter false
+
             // Check line for usage of a library.
-            val prediction = cache[libId]!!.evaluate(line)
-            // Prediction based on two classes.
-            val prob = prediction[cache[libId]!!.libraries.indexOf(libId)]
+            val prediction = classifier.evaluate(line)
+            if (prediction.isEmpty()) return@filter false
+            val libIndex = classifier.libraries.indexOf(libId)
+            if (libIndex < 0 || libIndex >= prediction.size) return@filter false
+            val prob = prediction[libIndex]
             // Define lower bound of classifier output
             // that depends on data used to create the model.
             // TODO(lyaronskaya): move thresholds to protobuf.
@@ -104,15 +108,18 @@ class ClassifierManager {
         val client = builder.build()
         try {
             client.execute(HttpGet(url)).use { response ->
-                val entity = response.entity
-                if (entity != null) {
-                    FileOutputStream(file).use { outstream ->
-                        entity.writeTo(outstream)
-                        outstream.flush()
-                        outstream.close()
+                if (response.statusLine.statusCode == 200) {
+                    val entity = response.entity
+                    if (entity != null) {
+                        FileOutputStream(file).use { outstream ->
+                            entity.writeTo(outstream)
+                            outstream.flush()
+                            outstream.close()
+                        }
                     }
+                } else {
+                    Logger.warn { "Classifier $libId unavailable from cloud (HTTP ${response.statusLine.statusCode})" }
                 }
-
             }
         } catch (e: Exception) {
             Logger.error(e, "Failed to download $libId classifier")
@@ -123,9 +130,15 @@ class ClassifierManager {
      * Loads libraries from local storage to cache.
      */
     private fun loadClassifier(libId: String) {
-        val bytesArray = FileHelper.getFile(libId + DATA_EXT, CLASSIFIERS_DIR)
-            .readBytes()
-        cache[libId] = Classifier(bytesArray)
+        try {
+            val file = FileHelper.getFile(libId + DATA_EXT, CLASSIFIERS_DIR)
+            if (file.exists() && file.length() > 0) {
+                val bytesArray = file.readBytes()
+                cache[libId] = Classifier(bytesArray)
+            }
+        } catch (e: Exception) {
+            Logger.warn { "Failed to load local classifier $libId: ${e.message}" }
+        }
     }
 
     /**
@@ -138,13 +151,17 @@ class ClassifierManager {
         val client = builder.build()
         try {
             client.execute(HttpGet(url)).use { response ->
-                val entity = response.entity
-                if (entity != null) {
-                    FileOutputStream(file).use { outstream ->
-                        entity.writeTo(outstream)
-                        outstream.flush()
-                        outstream.close()
+                if (response.statusLine.statusCode == 200) {
+                    val entity = response.entity
+                    if (entity != null) {
+                        FileOutputStream(file).use { outstream ->
+                            entity.writeTo(outstream)
+                            outstream.flush()
+                            outstream.close()
+                        }
                     }
+                } else {
+                    Logger.warn { "Libraries meta unavailable from cloud (HTTP ${response.statusLine.statusCode})" }
                 }
             }
         } catch (e: Exception) {
@@ -156,12 +173,21 @@ class ClassifierManager {
      * Loads libraries meta data from local storage.
      */
     private fun getLibraryMeta(): LibraryMeta {
-        Logger.info { "Downloading $LIBS_META_FILENAME" }
-        downloadLibrariesMeta()
-        Logger.info { "Finished downloading $LIBS_META_FILENAME" }
+        return try {
+            Logger.info { "Downloading $LIBS_META_FILENAME" }
+            downloadLibrariesMeta()
+            Logger.info { "Finished downloading $LIBS_META_FILENAME" }
 
-        val bytesArray = FileHelper.getFile(LIBS_META_FILENAME,
-            LIBS_META_DIR).readBytes()
-        return LibraryMeta(bytesArray)
+            val file = FileHelper.getFile(LIBS_META_FILENAME, LIBS_META_DIR)
+            if (file.exists() && file.length() > 0) {
+                val bytesArray = file.readBytes()
+                LibraryMeta(bytesArray)
+            } else {
+                LibraryMeta()
+            }
+        } catch (e: Throwable) {
+            Logger.warn { "Falling back to empty library meta: ${e.message}" }
+            LibraryMeta()
+        }
     }
 }

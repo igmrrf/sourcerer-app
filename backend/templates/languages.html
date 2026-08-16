@@ -1,23 +1,35 @@
-<h2>Top Languages</h2>
+<div class="card-header-row">
+    <h2>&#9881; Technology Stack</h2>
+    <span class="card-tag">AST ANALYSIS</span>
+</div>
+
 {{if not .}}
-    <p class="empty-state">No language data available.</p>
+    <div class="empty-state">
+        <div class="empty-icon">&#128187;</div>
+        <p>No language data available.</p>
+        <span style="font-size: 0.8rem; color: var(--text-dim);">Run the CLI analysis to detect languages and libraries.</span>
+    </div>
 {{else}}
-    <div class="lang-container">
-        <div class="lang-bar-wrapper">
-            {{range .}}
-            <div class="lang-bar-segment" style="width: {{.Percentage}}%;" title="{{.Tech}}: {{.Percentage}}%"></div>
+    <div style="display: flex; flex-direction: column; height: 100%; gap: 1rem;">
+        <!-- Multi-segment glowing technology bar -->
+        <div style="display: flex; height: 10px; border-radius: var(--radius-full); overflow: hidden; background-color: var(--bg-base); border: 1px solid var(--border-subtle); gap: 2px; padding: 1px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);">
+            {{range $i, $lang := .}}
+            <div style="width: {{$lang.Percentage}}%; border-radius: 4px; transition: width 0.4s ease; background-color: {{if eq $i 0}}#8b5cf6{{else if eq $i 1}}#a855f7{{else if eq $i 2}}#06b6d4{{else if eq $i 3}}#10b981{{else if eq $i 4}}#f59e0b{{else if eq $i 5}}#f43f5e{{else}}#6366f1{{end}};" 
+                 title="{{$lang.Tech}}: {{$lang.Percentage}}%"></div>
             {{end}}
         </div>
-        <ul class="lang-list">
-            {{range .}}
-            <li>
-                <div class="lang-tech-wrapper">
-                    <span class="lang-dot"></span>
-                    <span class="lang-tech-name">{{.Tech}}</span>
+
+        <!-- Languages breakdown list -->
+        <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.55rem; overflow-y: auto; max-height: 200px; padding-right: 0.25rem;">
+            {{range $i, $lang := .}}
+            <li style="display: flex; justify-content: space-between; align-items: center; background: rgba(18, 13, 36, 0.4); border: 1px solid var(--border-subtle); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); transition: var(--transition-smooth);">
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <span style="width: 9px; height: 9px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; color: {{if eq $i 0}}#8b5cf6{{else if eq $i 1}}#a855f7{{else if eq $i 2}}#06b6d4{{else if eq $i 3}}#10b981{{else if eq $i 4}}#f59e0b{{else if eq $i 5}}#f43f5e{{else}}#6366f1{{end}}; background-color: currentColor;"></span>
+                    <span style="font-weight: 600; font-size: 0.875rem; color: var(--text-primary);">{{$lang.Tech}}</span>
                 </div>
-                <div class="lang-metrics">
-                    <span class="lang-percentage">{{.Percentage}}%</span>
-                    <span class="lang-lines">{{.Lines}} lines</span>
+                <div style="display: flex; align-items: center; gap: 0.85rem; font-family: var(--font-mono); font-size: 0.8rem;">
+                    <span style="font-weight: 700; color: var(--primary-light); background: rgba(139, 92, 246, 0.12); padding: 0.15rem 0.5rem; border-radius: var(--radius-sm);">{{$lang.Percentage}}%</span>
+                    <span style="color: var(--text-dim);">{{$lang.Lines}} lines</span>
                 </div>
             </li>
             {{end}}

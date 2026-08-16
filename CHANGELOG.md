@@ -6,9 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [1.0.0] - 2026-08-16
+## [1.1.0] - 2026-08-16
 
 ### Added
+- **Modern Purple Frontend Redesign**: Full visual and architectural redesign with *Deep Violet Cyber-Intelligence* aesthetic thesis, responsive grid structure for desktop and mobile, Google Fonts (`Plus Jakarta Sans` & `JetBrains Mono`), glowing telemetry cards, interactive embed hub, and unified purple design tokens (`#8b5cf6`, `#7c3aed`, `#090514`).
 - **Dynamic Public Developer Profiles**: Shareable public profiles accessible at `/u/{username}` and `/p/{email}` displaying hero banners, contributor metrics, language distribution progress bars, repository breakdowns, and coding habits.
 - **Dynamic SVG Badges**: Endpoint at `/badge/{identifier}.svg` generating cache-enabled (`Cache-Control: max-age=1800`) SVG cards suitable for embedding directly in GitHub READMEs.
 - **Coding Habits & Facts Card**: Decoder for `FactCodes` (night owl vs. early bird, weekday vs. weekend commits, spaces vs. tabs, naming conventions, average commit and line sizes) with fallback calculations from commit records.
