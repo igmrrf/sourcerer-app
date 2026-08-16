@@ -618,7 +618,7 @@
                 <ul class="contributor-list">
                     {{range .TopContributors}}
                     <li>
-                        <a href="/p/{{.Email}}" class="contributor-item" title="View {{.Name}}'s profile">
+                        <a href="{{.ProfileURL}}" class="contributor-item" title="View {{.Name}}'s profile">
                             <div class="contributor-info">
                                 <div class="avatar-circle {{if .IsSourcerer}}avatar-halo{{end}}">
                                     {{slice .Name 0 1}}
@@ -650,7 +650,7 @@
                 <ul class="contributor-list">
                     {{range .TrendingContributors}}
                     <li>
-                        <a href="/p/{{.Email}}" class="contributor-item" title="View {{.Name}}'s profile">
+                        <a href="{{.ProfileURL}}" class="contributor-item" title="View {{.Name}}'s profile">
                             <div class="contributor-info">
                                 <div class="avatar-circle {{if .IsSourcerer}}avatar-halo{{end}}">
                                     {{slice .Name 0 1}}
@@ -682,7 +682,7 @@
                 <ul class="contributor-list">
                     {{range .NewContributors}}
                     <li>
-                        <a href="/p/{{.Email}}" class="contributor-item" title="View {{.Name}}'s profile">
+                        <a href="{{.ProfileURL}}" class="contributor-item" title="View {{.Name}}'s profile">
                             <div class="contributor-info">
                                 <div class="avatar-circle {{if .IsSourcerer}}avatar-halo{{end}}">
                                     {{slice .Name 0 1}}
@@ -743,7 +743,7 @@
                     <div>
                         <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary);">Markdown Snippet</span>
                         <div class="code-box">
-                            <pre id="md-code">[![Sourcerer Hall of Fame](https://{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg)](https://{{.PublicBaseURL}}/r/{{.RepoRehash}})</pre>
+                            <pre id="md-code">[![Sourcerer Hall of Fame]({{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg)]({{.PublicBaseURL}}/r/{{.RepoRehash}})</pre>
                             <button class="copy-btn" onclick="copySnippet('md-code', 'Markdown')">Copy</button>
                         </div>
                     </div>
@@ -751,7 +751,7 @@
                     <div style="margin-top: 1.25rem;">
                         <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary);">HTML Snippet</span>
                         <div class="code-box">
-                            <pre id="html-code">&lt;a href="https://{{.PublicBaseURL}}/r/{{.RepoRehash}}"&gt;&lt;img src="https://{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer Hall of Fame" /&gt;&lt;/a&gt;</pre>
+                            <pre id="html-code">&lt;a href="{{.PublicBaseURL}}/r/{{.RepoRehash}}"&gt;&lt;img src="{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer Hall of Fame" /&gt;&lt;/a&gt;</pre>
                             <button class="copy-btn" onclick="copySnippet('html-code', 'HTML')">Copy</button>
                         </div>
                     </div>

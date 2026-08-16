@@ -304,7 +304,3 @@ func TestIngestionJobEnqueue(t *testing.T) {
 		t.Fatal("Expected job in JobQueue")
 	}
 }
-
-
-
-

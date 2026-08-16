@@ -1,0 +1,26 @@
+# Local development overlay. Serves the app over plain HTTP on :8080 so it
+# matches a GitHub OAuth app whose callback URL is
+# http://localhost:8080/auth/github/callback, and skips the TLS proxy entirely.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Never use this file in production: ENV=development relaxes the Secure flag on
+# session cookies (the browser would otherwise discard them over HTTP) and
+# allows the ingestion API to run without a token.
+services:
+  backend:
+    environment:
+      - ENV=development
+      - PUBLIC_BASE_URL=http://localhost:8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # Enables template hot-reload: the binary looks for templates/*.html in
+      # its working directory and falls back to the embedded copies otherwise.
+      - ./backend/templates:/app/templates:ro
+
+  # The TLS proxy is not part of the HTTP dev loop. Parking it behind a profile
+  # keeps `up` from starting it without having to maintain a second file.
+  proxy:
+    profiles:
+      - tls

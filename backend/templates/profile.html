@@ -721,7 +721,7 @@
                 </div>
             </div>
             <div class="hero-actions">
-                <a href="/badge/{{.Email}}.svg" target="_blank" class="btn btn-outline">&#128065; View SVG Badge</a>
+                <a href="/badge/{{.ProfileID}}.svg" target="_blank" class="btn btn-outline">&#128065; View SVG Badge</a>
                 <button type="button" class="btn" onclick="copyProfileLink()">
                     &#128203; Copy Link
                 </button>
@@ -919,7 +919,7 @@
             </p>
 
             <div class="badge-preview-container">
-                <img src="/badge/{{.Email}}.svg" alt="{{.Name}} Sourcerer Profile Badge" loading="lazy">
+                <img src="/badge/{{.ProfileID}}.svg" alt="{{.Name}} Sourcerer Profile Badge" loading="lazy">
             </div>
 
             <div class="code-box-wrapper">
@@ -928,7 +928,7 @@
                         <span>Markdown Embed Code</span>
                     </span>
                     <div class="code-copy-group">
-                        <input type="text" readonly class="badge-code" id="markdown-snippet" value="[![Sourcerer Profile](http://localhost:8080/badge/{{.Email}}.svg)](http://localhost:8080/p/{{.Email}})">
+                        <input type="text" readonly class="badge-code" id="markdown-snippet" value="[![Sourcerer Profile]({{.PublicBaseURL}}/badge/{{.ProfileID}}.svg)]({{.PublicBaseURL}}/p/{{.ProfileID}})">
                         <button type="button" class="btn-copy" onclick="copySnippet('markdown-snippet')">
                             &#128203; Copy Markdown
                         </button>
@@ -940,7 +940,7 @@
                         <span>HTML Embed Code</span>
                     </span>
                     <div class="code-copy-group">
-                        <input type="text" readonly class="badge-code" id="html-snippet" value="&lt;a href=&quot;http://localhost:8080/p/{{.Email}}&quot;&gt;&lt;img src=&quot;http://localhost:8080/badge/{{.Email}}.svg&quot; alt=&quot;{{.Name}} Sourcerer Profile&quot; /&gt;&lt;/a&gt;">
+                        <input type="text" readonly class="badge-code" id="html-snippet" value="&lt;a href=&quot;{{.PublicBaseURL}}/p/{{.ProfileID}}&quot;&gt;&lt;img src=&quot;{{.PublicBaseURL}}/badge/{{.ProfileID}}.svg&quot; alt=&quot;{{.Name}} Sourcerer Profile&quot; /&gt;&lt;/a&gt;">
                         <button type="button" class="btn-copy" onclick="copySnippet('html-snippet')">
                             &#128203; Copy HTML
                         </button>

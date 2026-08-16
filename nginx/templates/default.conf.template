@@ -1,0 +1,135 @@
+# Rendered by the nginx image's envsubst entrypoint from /etc/nginx/templates.
+# Substituted variables: SERVER_NAME, SSL_CERTIFICATE, SSL_CERTIFICATE_KEY.
+# Everything here lands inside the stock nginx.conf http{} block.
+
+# Gzip compression
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 256;
+gzip_types
+    text/plain
+    text/css
+    text/xml
+    text/javascript
+    application/json
+    application/javascript
+    application/x-javascript
+    application/xml
+    application/xml+rss
+    image/svg+xml;
+
+# Rate limiting zones
+limit_req_zone $binary_remote_addr zone=general_limit:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+
+# Upstream Go backend
+upstream backend_upstream {
+    server backend:8080;
+    keepalive 32;
+}
+
+# Application security headers (X-Frame-Options, X-Content-Type-Options,
+# Referrer-Policy, Content-Security-Policy) are set by the Go backend, not
+# here. nginx's add_header inheritance is all-or-nothing per level, so a single
+# add_header inside a server block silently drops every header declared at
+# http level — which is exactly how those headers went missing over TLS.
+# Keeping them in one place removes the trap and the duplicate-value risk.
+
+# HTTP server (ACME challenge + redirect to HTTPS)
+server {
+    listen 80;
+    server_name ${SERVER_NAME};
+
+    # ACME challenge for Certbot Let's Encrypt
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location /healthz {
+        access_log off;
+        proxy_pass http://backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS server block
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${SERVER_NAME};
+
+    # Local development uses the self-signed pair from generate_local_ssl.sh;
+    # production points these at the Certbot-managed live directory. Both are
+    # supplied as SSL_CERTIFICATE / SSL_CERTIFICATE_KEY in the environment, so
+    # this file never needs editing between environments.
+    ssl_certificate ${SSL_CERTIFICATE};
+    ssl_certificate_key ${SSL_CERTIFICATE_KEY};
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    client_max_body_size 60M;
+    client_body_buffer_size 1M;
+
+    location /healthz {
+        access_log off;
+        proxy_pass http://backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # API routes with dedicated rate limiting
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+
+        proxy_pass http://backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # General frontend & OAuth routes
+    location / {
+        limit_req zone=general_limit burst=40 nodelay;
+
+        proxy_pass http://backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+}

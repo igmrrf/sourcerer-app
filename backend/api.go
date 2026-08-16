@@ -1,11 +1,15 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"backend/app"
@@ -18,24 +22,57 @@ type API struct {
 	db *sql.DB
 }
 
+// hashedInternalToken mirrors the CLI's PasswordHelper.hashPassword, which
+// SHA-256 hashes every password before it reaches the wire
+// (cli/src/main/kotlin/app/Main.kt). The CLI therefore authenticates with the
+// hash of API_INTERNAL_TOKEN rather than the token itself.
+func hashedInternalToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// matchesInternalToken accepts either the raw token (external callers) or its
+// SHA-256 hex digest (the Kotlin CLI), in constant time.
+func matchesInternalToken(candidate, token string) bool {
+	if token == "" || candidate == "" {
+		return false
+	}
+	if hmac.Equal([]byte(candidate), []byte(token)) {
+		return true
+	}
+	return hmac.Equal([]byte(candidate), []byte(hashedInternalToken(token)))
+}
+
 func apiAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := os.Getenv("API_INTERNAL_TOKEN")
 		if token == "" {
-			// No token configured, allow all (dev mode)
+			// Only reachable in development: main() refuses to start in
+			// production without API_INTERNAL_TOKEN.
+			if isDevMode() {
+				next.ServeHTTP(w, r)
+				return
+			}
+			slog.Error("API_INTERNAL_TOKEN unset outside development; rejecting request")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		const bearerPrefix = "Bearer "
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, bearerPrefix) &&
+			matchesInternalToken(strings.TrimPrefix(authHeader, bearerPrefix), token) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "Bearer "+token {
+		if _, password, ok := r.BasicAuth(); ok && matchesInternalToken(password, token) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		cookie, err := r.Cookie("Token")
-		if err == nil && cookie.Value == token {
+		if err == nil && matchesInternalToken(cookie.Value, token) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -73,24 +110,34 @@ func (a *API) Routes() chi.Router {
 func (a *API) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	token := os.Getenv("API_INTERNAL_TOKEN")
 	if token == "" {
+		if !isDevMode() {
+			slog.Error("API_INTERNAL_TOKEN unset outside development; refusing to issue token")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		token = "dummy_token"
 	}
 
 	_, password, ok := r.BasicAuth()
-	if !ok || password != token {
+	if !ok || !matchesInternalToken(password, token) {
+		slog.Warn("Rejected /api/auth attempt", "remote_addr", r.RemoteAddr)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
+	// Echo back the credential the caller already proved it holds rather than
+	// the raw token, so the CLI's hashed form never round-trips to plaintext.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "Token",
-		Value:    token,
+		Value:    password,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   !isDevMode(),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   int((12 * time.Hour).Seconds()),
 	})
 	w.WriteHeader(http.StatusOK)
 }
-
 
 func (a *API) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	u := &app.User{}
@@ -251,7 +298,6 @@ func (a *API) HandlePostDistances(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-
 func (a *API) HandlePostFacts(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(io.LimitReader(r.Body, 50<<20)) // 50MB limit
 	if err != nil {
@@ -357,4 +403,3 @@ func (a *API) HandleProcessCreate(w http.ResponseWriter, r *http.Request) {
 func (a *API) HandleProcess(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
-

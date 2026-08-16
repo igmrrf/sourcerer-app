@@ -3,7 +3,7 @@ services:
     image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-sourcerer}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
@@ -13,40 +13,90 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
       # Mount the schema file to initialize the DB automatically
-      - ./backend/schema.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # Builds the Kotlin extractor jar the backend shells out to. Opt-in so the
+  # normal `up` path is fast:
+  #   docker compose --profile build run --rm cli-build
+  # The jar lands in ./cli/build/libs and is mounted read-only into backend.
+  cli-build:
+    image: gradle:4.10.3-jdk8
+    profiles:
+      - build
+    working_dir: /home/gradle/project
+    volumes:
+      - ./cli:/home/gradle/project
+      - gradle_cache:/home/gradle/.gradle
+    # `assemble`, not `build`: the Spek test dependencies resolve from
+    # dl.bintray.com, which is sunset, so compiling tests would fail. The
+    # production jar itself has no such dependency.
+    command: gradle --no-daemon assemble
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      # Root context so the image can bake in cli/build/libs/sourcerer-app.jar.
+      # Run ./build_cli.sh first; .dockerignore keeps the context small.
+      context: .
+      dockerfile: backend/Dockerfile
     expose:
       - "8080"
     environment:
       - ENV=${ENV:-production}
       - DATABASE_URL=host=db user=${POSTGRES_USER:-postgres} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB:-sourcerer} sslmode=disable
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - SESSION_SECRET=${SESSION_SECRET}
-      - API_INTERNAL_TOKEN=${API_INTERNAL_TOKEN}
-    volumes:
-      - ./cli/build/libs/sourcerer-app.jar:/root/sourcerer-app.jar
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:?GITHUB_CLIENT_ID must be set}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:?GITHUB_CLIENT_SECRET must be set}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET must be set}
+      - API_INTERNAL_TOKEN=${API_INTERNAL_TOKEN:?API_INTERNAL_TOKEN must be set}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # The JVM extractor runs inside this container; leave it headroom.
+          memory: 2g
 
   proxy:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - SERVER_NAME=${SERVER_NAME:-_}
+      - SSL_CERTIFICATE=${SSL_CERTIFICATE:-/etc/nginx/ssl/fullchain.pem}
+      - SSL_CERTIFICATE_KEY=${SSL_CERTIFICATE_KEY:-/etc/nginx/ssl/privkey.pem}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      # Runs after the image's own 20-envsubst step; see the script's comment.
+      - ./nginx/entrypoint.d/99-cert-reload.sh:/docker-entrypoint.d/99-cert-reload.sh:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
-      - backend
+      # nginx resolves upstream hostnames at startup and refuses to start if
+      # `backend` does not resolve, so waiting for merely "started" makes the
+      # proxy crash-loop alongside a backend that is still restarting.
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   certbot:
@@ -58,13 +108,19 @@ services:
       - ./certbot/www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
+  # Log viewer. Bound to loopback only: it mounts the Docker socket, which is
+  # root-equivalent on the host, and ships no authentication of its own.
+  # Reach it over an SSH tunnel: ssh -L 9999:localhost:9999 <host>
   dozzle:
     image: amir20/dozzle:latest
+    profiles:
+      - debug
     ports:
-      - "9999:8080"
+      - "127.0.0.1:9999:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  gradle_cache:

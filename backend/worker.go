@@ -4,13 +4,30 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
+
+// Bounds on the external tools the worker shells out to. Without these, a
+// single unresponsive remote or a pathological repository stalls ingestion
+// permanently, because the queue has one consumer.
+const (
+	lsRemoteTimeout = 15 * time.Second
+	cloneTimeout    = 15 * time.Minute
+	extractTimeout  = 30 * time.Minute
+)
+
+// cliConfigMutex serializes CLI invocations. The Kotlin CLI keeps its
+// configuration in a single directory beside the jar and calls resetAndSave()
+// on every headless run (cli/src/main/kotlin/app/Main.kt), so two concurrent
+// runs would clobber each other's credentials and repo list.
+var cliConfigMutex sync.Mutex
 
 type IngestionJob struct {
 	RepoURL        string
@@ -40,9 +57,45 @@ func StartWorker(ctx context.Context) {
 			slog.Info("Background ingestion worker shutting down")
 			return
 		case job := <-JobQueue:
-			processJob(job)
+			// Deliberately detached from ctx: on shutdown the loop stops
+			// accepting new jobs, but the job already in flight is allowed to
+			// finish (bounded by its own timeouts) rather than leaving a
+			// half-written clone and a partial ingest. main() waits for it.
+			processJob(context.Background(), job)
 		}
 	}
+}
+
+// resolveJarPath locates the Kotlin extractor jar and rejects placeholder
+// files. A zero-length jar passes a naive existence check but makes every
+// `java -jar` invocation fail at runtime, which is how a missing build step
+// used to surface — one failed job at a time instead of at startup.
+func resolveJarPath() (string, error) {
+	candidates := []string{
+		"/app/sourcerer-app.jar",
+		filepath.Join("..", "cli", "build", "libs", "sourcerer-app.jar"),
+	}
+	if env := os.Getenv("SOURCERER_JAR_PATH"); env != "" {
+		candidates = append([]string{env}, candidates...)
+	}
+
+	var problems []string
+	for _, path := range candidates {
+		stat, err := os.Stat(path)
+		switch {
+		case err != nil:
+			problems = append(problems, err.Error())
+		case stat.IsDir():
+			problems = append(problems, path+": is a directory, not a jar (Docker creates one when a bind-mount source is missing)")
+		case stat.Size() == 0:
+			problems = append(problems, path+": empty file; build the CLI jar first")
+		default:
+			return path, nil
+		}
+	}
+	// Report every candidate: the first one failing is the interesting case in
+	// Docker, and reporting only the last hides it behind the dev-mode path.
+	return "", fmt.Errorf("no usable sourcerer-app.jar: %s", strings.Join(problems, "; "))
 }
 
 func computeCommitRehash(gitSHA string) string {
@@ -50,8 +103,8 @@ func computeCommitRehash(gitSHA string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func getRemoteHeadSHA(repoURL string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+func getRemoteHeadSHA(parent context.Context, repoURL string) string {
+	ctx, cancel := context.WithTimeout(parent, lsRemoteTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", "ls-remote", repoURL, "HEAD")
@@ -67,11 +120,11 @@ func getRemoteHeadSHA(repoURL string) string {
 	return ""
 }
 
-func processJob(job IngestionJob) {
+func processJob(ctx context.Context, job IngestionJob) {
 	slog.Info("Processing repository ingestion job", "repo_url", job.RepoURL, "repo_name", job.RepoName, "user_email", job.UserEmail)
 
 	// Step 1: Lightweight remote HEAD check (git ls-remote takes ~100ms and transfers a few bytes)
-	remoteHeadSHA := getRemoteHeadSHA(job.RepoURL)
+	remoteHeadSHA := getRemoteHeadSHA(ctx, job.RepoURL)
 	var headRehash string
 	if remoteHeadSHA != "" {
 		headRehash = computeCommitRehash(remoteHeadSHA)
@@ -115,21 +168,29 @@ func processJob(job IngestionJob) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Clone repository (full clone to preserve complete commit telemetry)
+	// Clone repository (full clone to preserve complete commit telemetry).
+	// git is told never to prompt: a repository that has become private would
+	// otherwise block on a credential prompt until the timeout expires.
 	slog.Info("Cloning repository", "repo_url", job.RepoURL, "dir", tmpDir)
-	cmdClone := exec.Command("git", "clone", job.RepoURL, tmpDir)
+	cloneCtx, cancelClone := context.WithTimeout(ctx, cloneTimeout)
+	defer cancelClone()
+	cmdClone := exec.CommandContext(cloneCtx, "git", "clone", job.RepoURL, tmpDir)
+	cmdClone.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "GCM_INTERACTIVE=never")
 	cmdClone.Stdout = os.Stdout
 	cmdClone.Stderr = os.Stderr
 	if err := cmdClone.Run(); err != nil {
-		slog.Error("Failed to clone repository", "repo_url", job.RepoURL, "error", err)
+		if cloneCtx.Err() == context.DeadlineExceeded {
+			slog.Error("Clone timed out", "repo_url", job.RepoURL, "timeout", cloneTimeout)
+		} else {
+			slog.Error("Failed to clone repository", "repo_url", job.RepoURL, "error", err)
+		}
 		return
 	}
 
-	// Execute Java CLI headless pipeline
-	jarPath := "/root/sourcerer-app.jar"
-	// Fallback for local development if not running inside Docker
-	if _, err := os.Stat(jarPath); os.IsNotExist(err) {
-		jarPath = filepath.Join("..", "cli", "build", "libs", "sourcerer-app.jar")
+	jarPath, err := resolveJarPath()
+	if err != nil {
+		slog.Error("Cannot run ingestion CLI", "error", err)
+		return
 	}
 
 	internalToken := os.Getenv("API_INTERNAL_TOKEN")
@@ -138,7 +199,13 @@ func processJob(job IngestionJob) {
 	}
 
 	slog.Info("Running headless ingestion CLI", "path", tmpDir, "user_email", job.UserEmail)
-	cmdJava := exec.Command("java", "-jar", jarPath,
+	extractCtx, cancelExtract := context.WithTimeout(ctx, extractTimeout)
+	defer cancelExtract()
+
+	// The CLI rewrites its shared on-disk config on every run, so only one may
+	// execute at a time.
+	cliConfigMutex.Lock()
+	cmdJava := exec.CommandContext(extractCtx, "java", "-jar", jarPath,
 		"--headless",
 		"--path", tmpDir,
 		"--username", job.UserEmail,
@@ -146,8 +213,15 @@ func processJob(job IngestionJob) {
 
 	cmdJava.Stdout = os.Stdout
 	cmdJava.Stderr = os.Stderr
-	if err := cmdJava.Run(); err != nil {
-		slog.Error("Failed to run Java CLI ingestion", "repo_url", job.RepoURL, "error", err)
+	runErr := cmdJava.Run()
+	cliConfigMutex.Unlock()
+
+	if runErr != nil {
+		if extractCtx.Err() == context.DeadlineExceeded {
+			slog.Error("Ingestion CLI timed out", "repo_url", job.RepoURL, "timeout", extractTimeout)
+		} else {
+			slog.Error("Failed to run Java CLI ingestion", "repo_url", job.RepoURL, "error", runErr)
+		}
 		return
 	}
 
