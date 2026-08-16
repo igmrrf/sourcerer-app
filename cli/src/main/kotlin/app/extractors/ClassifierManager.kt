@@ -22,6 +22,7 @@ class ClassifierManager {
     }
 
     val cache = hashMapOf<String, Classifier>()
+    val unavailable = hashSetOf<String>()
     val libsMeta = getLibraryMeta()
 
     /**
@@ -29,17 +30,29 @@ class ClassifierManager {
      */
     fun estimate(line: List<String>, libraries: List<String>): List<String> {
         return libraries.filter { libId ->
+            if (unavailable.contains(libId)) {
+                return@filter false
+            }
+
             if (!cache.containsKey(libId)) {
                 // Library not downloaded from cloud storage.
                 if (FileHelper.notExists(libId + DATA_EXT, CLASSIFIERS_DIR)) {
                     Logger.info { "Downloading $libId classifier" }
-                    downloadClassifier(libId)
+                    val success = downloadClassifier(libId)
                     Logger.info { "Finished downloading $libId classifier" }
+                    if (!success) {
+                        unavailable.add(libId)
+                        return@filter false
+                    }
                 }
 
                 // Library not loaded from local storage.
                 Logger.info { "Loading $libId evaluator" }
                 loadClassifier(libId)
+                if (!cache.containsKey(libId)) {
+                    unavailable.add(libId)
+                    return@filter false
+                }
                 Logger.info { "$libId evaluator ready" }
             }
 
@@ -100,7 +113,7 @@ class ClassifierManager {
     /**
      * Downloads libraries from cloud.
      */
-    private fun downloadClassifier(libId: String) {
+    private fun downloadClassifier(libId: String): Boolean {
         val file = FileHelper.getFile(libId + DATA_EXT, CLASSIFIERS_DIR)
         val langId = libId.split('.')[0]
         val url = "${BuildConfig.LIBRARY_MODELS_URL}$langId/$libId$DATA_EXT"
@@ -116,14 +129,18 @@ class ClassifierManager {
                             outstream.flush()
                             outstream.close()
                         }
+                        return true
                     }
                 } else {
                     Logger.warn { "Classifier $libId unavailable from cloud (HTTP ${response.statusLine.statusCode})" }
+                    return false
                 }
             }
         } catch (e: Exception) {
             Logger.error(e, "Failed to download $libId classifier")
+            return false
         }
+        return false
     }
 
     /**

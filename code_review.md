@@ -29,6 +29,7 @@
 | `backend/main.go` | Updated | Added Tier-1 GitHub `pushed_at` timestamp comparison to bypass unnecessary repo enqueueing |
 | `backend/main_test.go` | Updated | Added automated tests for commit rehash calculation and `IngestionJob` queueing |
 | `backend/schema.sql` | Updated | Added `repo_url`, `repo_name`, `last_commit_rehash`, `last_synced_at`, `github_pushed_at` to `repos` table |
+| `cli/src/main/kotlin/app/extractors/ClassifierManager.kt` | Updated | Added negative cache (`unavailable` set) to prevent infinite download retries on HTTP 403 classifier models |
 | `CHANGELOG.md` | Updated | Documented Smart Repository Sync & Skip Optimization release |
 
 ---
