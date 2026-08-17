@@ -62,7 +62,7 @@ All configuration is environment variables, read from `.env` by Compose.
 | `SESSION_SECRET` | yes | — | HMAC key for session cookies; rotating it invalidates every session |
 | `API_INTERNAL_TOKEN` | yes | — | Shared secret between the backend and the extractor CLI |
 | `ENV` | no | `production` | `development` enables template hot-reload and relaxes cookie `Secure` |
-| `PUBLIC_BASE_URL` | no | derived from request | Absolute origin used in README embed snippets, e.g. `https://sourcerer.example` |
+| `PUBLIC_BASE_URL` | recommended | derived from request | Absolute origin used in README embed snippets, canonical URLs, Open Graph tags and the sitemap, e.g. `https://sourcerer.theldo.com`. Set it in production: without it every reachable hostname produces a different canonical URL. |
 | `CORS_ALLOWED_ORIGINS` | no | none | Comma-separated origins allowed to make credentialed cross-origin calls |
 | `SERVER_NAME` | no | `_` | nginx `server_name` |
 | `SSL_CERTIFICATE` | no | `/etc/nginx/ssl/fullchain.pem` | TLS certificate path inside the proxy container |
@@ -145,8 +145,8 @@ To access the Dozzle UI from your local computer:
 ## Development
 
 The dev overlay (`docker-compose.dev.yml`) sets `ENV=development`, publishes the
-backend on `127.0.0.1:8080`, mounts `backend/templates` for hot reload, and
-parks the TLS proxy behind a profile.
+backend on `127.0.0.1:8080`, mounts `backend/templates` and `backend/static` for
+hot reload, and parks the TLS proxy behind a profile.
 
 `ENV=development` also relaxes the `Secure` flag on session cookies — without
 that a browser discards them over plain HTTP and login silently fails — and
@@ -168,6 +168,45 @@ go test ./...
 `assemble` rather than `build`: the Spek test dependencies resolve from
 `dl.bintray.com`, which is sunset, so compiling the test sources fails. The
 production jar has no such dependency.
+
+## Frontend and assets
+
+Every page is a Go template in `backend/templates`, sharing one stylesheet at
+`backend/static/app.css`. The stylesheet is embedded in the binary and served
+from `/static/app.css?v=<fingerprint>`, where the fingerprint is a hash of the
+file — a redeploy invalidates the browser cache without anyone bumping a
+version. In `ENV=development` the same route reads from disk instead.
+
+`templates/_shell.html` holds the pieces every page shares: the `<head>` asset
+links, the SEO meta block and the sidebar. Pages differ in their content, never
+in their chrome.
+
+The icons and the social share card are committed build artifacts, regenerated
+from `backend/static/favicon.svg` by:
+
+```bash
+cd backend/static && ./generate_assets.sh
+```
+
+That script needs ImageMagick 7 and produces `favicon.ico`, `icon-192.png`,
+`icon-512.png`, `apple-touch-icon.png` and `og.png`. ImageMagick's built-in SVG
+renderer drops stroked paths, which is why the source mark is drawn with filled
+rects and circles only.
+
+## Search engines
+
+`/` serves a public landing page to signed-out visitors rather than redirecting
+into OAuth, so the site has an indexable front door. Signed-in visitors get the
+dashboard at the same URL, which is marked `noindex`.
+
+`/robots.txt` disallows `/dashboard/`, `/auth/`, `/api/`, `/badge/` and
+`/hall-of-fame/`, and points at `/sitemap.xml`. The sitemap is generated per
+request from the database: the landing and catalog pages, every library, every
+repository that has commits, and every published profile.
+
+Data and image routes also carry `X-Robots-Tag: noindex` — badges must keep
+loading inside READMEs, but they should never be a search result themselves.
+Public profiles are indexable; they show masked email addresses only.
 
 ## How ingestion works
 

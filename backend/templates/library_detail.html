@@ -3,95 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Library.Name}} — Sourcerer</title>
-    <meta name="description" content="{{.Library.Description}}">
+    {{template "seo" .SEO}}
     {{template "assets"}}
 </head>
 <body>
-    <div class="doc-shell">
-        <nav class="doc-nav">
-            <a href="/" class="rail-brand">
-                {{template "logomark"}}
-                <span class="wordmark">Sourcerer</span>
-            </a>
-            <div class="doc-nav-actions">
-                <a href="/libraries" class="btn">All libraries</a>
-                <a href="/" class="btn">Dashboard</a>
-            </div>
-        </nav>
+    <div class="app-shell">
+        {{template "rail" .SEO.Nav}}
 
-        <header class="doc-hero">
-            <div class="doc-hero-meta">
-                <span class="eyebrow">Library</span>
-                <h1>{{.Library.Name}}</h1>
-                <div class="doc-hero-tags">
-                    <span class="tag tag--accent">{{.Library.Lang}}</span>
-                    <span class="tag">{{.Library.Category}}</span>
-                </div>
-            </div>
-            <div class="doc-hero-actions">
-                <a href="/api/libraries/{{.Library.ID}}" class="btn">JSON</a>
-            </div>
-        </header>
-
-        <div class="grid">
-            <section class="panel col-12">
-                <p class="lede">{{.Library.Description}}</p>
-
-                {{if .Library.ImportTokens}}
-                <div class="code-field" style="margin-top: 18px;">
-                    <span class="eyebrow">Imports Sourcerer looks for</span>
-                    <div class="tokens">
-                        {{range .Library.ImportTokens}}
-                        <span class="token">{{.}}</span>
-                        {{end}}
+        <div class="shell-main">
+            <header class="topbar">
+                <div class="topbar-heading">
+                    <span class="eyebrow">Library</span>
+                    <h1>{{.Library.Name}}</h1>
+                    <div class="topbar-tags">
+                        <span class="tag tag--accent">{{.Library.Lang}}</span>
+                        <span class="tag">{{.Library.Category}}</span>
                     </div>
                 </div>
-                {{end}}
-            </section>
+                <div class="topbar-tools">
+                    <a href="/libraries" class="btn">All libraries</a>
+                    <a href="/api/libraries/{{.Library.ID}}" class="btn">JSON</a>
+                </div>
+            </header>
 
-            <section class="panel col-12">
-                <div class="panel-head">
-                    <h2 class="panel-title">Top contributors using {{.Library.Name}}</h2>
-                    <span class="eyebrow">By lines written</span>
+            <main class="canvas">
+                <div class="grid">
+                    <section class="panel col-12">
+                        <p class="lede">{{.Library.Description}}</p>
+
+                        {{if .Library.ImportTokens}}
+                        <div class="code-field" style="margin-top: 18px;">
+                            <span class="eyebrow">Imports Sourcerer looks for</span>
+                            <div class="tokens">
+                                {{range .Library.ImportTokens}}
+                                <span class="token">{{.}}</span>
+                                {{end}}
+                            </div>
+                        </div>
+                        {{end}}
+                    </section>
+
+                    <section class="panel col-12">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Top contributors using {{.Library.Name}}</h2>
+                            <span class="eyebrow">By lines written</span>
+                        </div>
+
+                        {{if not .Contributors}}
+                        <div class="empty">
+                            <p class="empty-title">No activity indexed yet</p>
+                            <p class="empty-hint">Nobody in the indexed repositories has imported {{.Library.Name}} so far.</p>
+                        </div>
+                        {{else}}
+                        <ul class="rows rows--split">
+                            {{range $i, $c := .Contributors}}
+                            <li>
+                                <a href="{{$c.ProfileURL}}" class="row" title="View {{$c.Name}}'s profile">
+                                    <span class="row-person">
+                                        <span class="rank {{if eq $i 0}}rank--1{{else if eq $i 1}}rank--2{{else if eq $i 2}}rank--3{{end}}">{{add $i 1}}</span>
+                                        <span class="row-names">
+                                            <span class="row-name">{{$c.Name}}</span>
+                                            <span class="row-sub">{{$c.Email}}</span>
+                                        </span>
+                                    </span>
+                                    <span class="row-side">
+                                        <span class="tag">{{$c.Commits}} commits</span>
+                                        <span class="tag tag--add">+{{$c.LinesAdded}} lines</span>
+                                    </span>
+                                </a>
+                            </li>
+                            {{end}}
+                        </ul>
+                        {{end}}
+                    </section>
                 </div>
 
-                {{if not .Contributors}}
-                <div class="empty">
-                    <p class="empty-title">No activity indexed yet</p>
-                    <p class="empty-hint">Nobody in the indexed repositories has imported {{.Library.Name}} so far.</p>
-                </div>
-                {{else}}
-                <ul class="rows">
-                    {{range $i, $c := .Contributors}}
-                    <li>
-                        <a href="{{$c.ProfileURL}}" class="row" title="View {{$c.Name}}'s profile">
-                            <span class="row-person">
-                                <span class="rank {{if eq $i 0}}rank--1{{else if eq $i 1}}rank--2{{else if eq $i 2}}rank--3{{end}}">{{add $i 1}}</span>
-                                <span class="row-names">
-                                    <span class="row-name">{{$c.Name}}</span>
-                                    <span class="row-sub">{{$c.Email}}</span>
-                                </span>
-                            </span>
-                            <span class="row-side">
-                                <span class="tag">{{$c.Commits}} commits</span>
-                                <span class="tag tag--add">+{{$c.LinesAdded}} lines</span>
-                            </span>
-                        </a>
-                    </li>
-                    {{end}}
-                </ul>
-                {{end}}
-            </section>
+                <footer class="foot">
+                    <span>Sourcerer &middot; engineering profiles from git history</span>
+                    <div class="foot-links">
+                        <a href="/libraries">All libraries</a>
+                        <a href="/">Overview</a>
+                    </div>
+                </footer>
+            </main>
         </div>
-
-        <footer class="foot">
-            <span>Sourcerer &middot; engineering profiles from git history</span>
-            <div class="foot-links">
-                <a href="/libraries">All libraries</a>
-                <a href="/">Dashboard</a>
-            </div>
-        </footer>
     </div>
 </body>
 </html>

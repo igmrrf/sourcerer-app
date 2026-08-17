@@ -1,6 +1,6 @@
 {{/*
 Shared page furniture. Parsed alongside every other template, so any page can
-pull these in with {{template "assets"}} / {{template "logomark"}}.
+pull these in: {{template "seo" .SEO}}, {{template "rail" .SEO.Nav}}.
 */}}
 
 {{define "assets"}}
@@ -8,6 +8,38 @@ pull these in with {{template "assets"}} / {{template "logomark"}}.
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{asset "app.css"}}">
+    <link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml">
+    <link rel="alternate icon" href="{{asset "favicon.ico"}}" sizes="48x48">
+    <link rel="apple-touch-icon" href="{{asset "apple-touch-icon.png"}}">
+    <link rel="manifest" href="{{asset "site.webmanifest"}}">
+    <meta name="theme-color" content="#0d1117">
+{{end}}
+
+{{define "seo"}}
+    <title>{{.Title}}</title>
+    <meta name="description" content="{{.Description}}">
+    <link rel="canonical" href="{{.Canonical}}">
+    {{if .NoIndex}}<meta name="robots" content="noindex, follow">{{else}}<meta name="robots" content="index, follow, max-image-preview:large">{{end}}
+
+    <meta property="og:site_name" content="Sourcerer">
+    <meta property="og:type" content="{{.Type}}">
+    <meta property="og:title" content="{{.Title}}">
+    <meta property="og:description" content="{{.Description}}">
+    <meta property="og:url" content="{{.Canonical}}">
+    <meta property="og:image" content="{{.Image}}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{.ImageAlt}}">
+    <meta property="og:locale" content="en_US">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{.Title}}">
+    <meta name="twitter:description" content="{{.Description}}">
+    <meta name="twitter:image" content="{{.Image}}">
+    <meta name="twitter:image:alt" content="{{.ImageAlt}}">
+    {{if .JSONLD}}
+    <script type="application/ld+json">{{.JSONLD}}</script>
+    {{end}}
 {{end}}
 
 {{define "logomark"}}
@@ -20,4 +52,55 @@ pull these in with {{template "assets"}} / {{template "logomark"}}.
         <path d="M12 12h4.4"></path>
     </svg>
 </span>
+{{end}}
+
+{{/* rail takes a NavMeta: the same sidebar on every page. */}}
+{{define "rail"}}
+<aside class="rail">
+    <a href="/" class="rail-brand">
+        {{template "logomark"}}
+        <span class="wordmark">Sourcerer</span>
+    </a>
+
+    <nav class="rail-group" aria-label="Main">
+        <span class="rail-label">Sourcerer</span>
+        <a href="/" class="rail-link{{if eq .Active "overview"}} is-active{{end}}"{{if eq .Active "overview"}} aria-current="page"{{end}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            Overview
+        </a>
+        <a href="/libraries" class="rail-link{{if eq .Active "libraries"}} is-active{{end}}"{{if eq .Active "libraries"}} aria-current="page"{{end}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 5-9-5v-7l9-5z"/><path d="M3.3 7.8 12 12.6l8.7-4.8"/><path d="M12 12.6V20"/></svg>
+            Libraries
+        </a>
+        {{if .Active}}{{if eq .Active "repository"}}
+        <span class="rail-link is-active" aria-current="page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v14H6.5A2.5 2.5 0 0 0 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H19v4H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>
+            Repository
+        </span>
+        {{end}}{{end}}
+    </nav>
+
+    {{if .ProfileID}}
+    <nav class="rail-group" aria-label="Your pages">
+        <span class="rail-label">Yours</span>
+        <a href="/p/{{.ProfileID}}" class="rail-link{{if eq .Active "profile"}} is-active{{end}}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+            Public profile
+        </a>
+        <a href="/badge/{{.ProfileID}}.svg" class="rail-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4.5 4L9 16"/><path d="m15 8 4.5 4L15 16"/></svg>
+            README badge
+        </a>
+    </nav>
+    {{end}}
+
+    <div class="rail-foot">
+        {{if .SignedIn}}
+        <a href="/auth/logout">Log out</a>
+        {{else}}
+        <a href="/auth/github/login">Connect with GitHub</a>
+        {{end}}
+        <a href="/healthz">System health</a>
+    </div>
+</aside>
 {{end}}

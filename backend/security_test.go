@@ -310,6 +310,13 @@ func TestTemplatesRender(t *testing.T) {
 		Name  string
 	}
 
+	// Every page carries page metadata; the sidebar is driven from it.
+	pageSEO := func(path, title string) SEOMeta {
+		seo := newSEO("https://sourcerer.example", path, title, "A description.")
+		seo.Nav = NavMeta{Active: "overview", SignedIn: true, ProfileID: "abc123"}
+		return seo
+	}
+
 	cases := []struct {
 		name string
 		data any
@@ -321,8 +328,17 @@ func TestTemplatesRender(t *testing.T) {
 				ProfileID: "abc123", Name: "Alice Developer", Email: "al***@example.com",
 				PublicBaseURL: "https://sourcerer.example",
 				Languages:     []LangStat{{Tech: "Go", Lines: 10, Percentage: 100}},
+				SEO:           pageSEO("/p/abc123", "Alice Developer — engineering profile"),
 			},
 			want: []string{"/badge/abc123.svg", "https://sourcerer.example/p/abc123"},
+		},
+		{
+			name: "landing.html",
+			data: struct {
+				SEO          SEOMeta
+				LibraryCount int
+			}{SEO: pageSEO("/", "Sourcerer"), LibraryCount: 412},
+			want: []string{"/auth/github/login", "412 libraries and frameworks"},
 		},
 		{
 			name: "repo.html",
@@ -330,6 +346,7 @@ func TestTemplatesRender(t *testing.T) {
 				RepoRehash: "example/repo", RepoName: "example/repo",
 				PublicBaseURL:   "https://sourcerer.example",
 				TopContributors: []ContributorStat{contributor},
+				SEO:             pageSEO("/r/example/repo", "example/repo contributors"),
 			},
 			want: []string{"/p/abc123", "https://sourcerer.example/r/example/repo"},
 		},
@@ -338,18 +355,26 @@ func TestTemplatesRender(t *testing.T) {
 			data: struct {
 				Authors []author
 				User    *userInfo
+				SEO     SEOMeta
 			}{
 				Authors: []author{{Email: "al***@example.com", Name: "Alice"}},
 				User:    &userInfo{Name: "Alice", Email: "al***@example.com", PublicProfileID: "abc123"},
+				SEO:     pageSEO("/", "Overview"),
 			},
 			want: []string{"/p/abc123", "/badge/abc123.svg"},
 		},
 		{
 			name: "libraries.html",
-			data: []LibraryCategoryGroup{{
-				Category: "Web frameworks",
-				Items:    []TechnologyMeta{{ID: "go.chi", Name: "Chi", Lang: "Go", Description: "HTTP router", ImportTokens: []string{"go-chi/chi"}}},
-			}},
+			data: struct {
+				Groups []LibraryCategoryGroup
+				SEO    SEOMeta
+			}{
+				Groups: []LibraryCategoryGroup{{
+					Category: "Web frameworks",
+					Items:    []TechnologyMeta{{ID: "go.chi", Name: "Chi", Lang: "Go", Description: "HTTP router", ImportTokens: []string{"go-chi/chi"}}},
+				}},
+				SEO: pageSEO("/libraries", "Library catalog"),
+			},
 			want: []string{"/libraries/go.chi", "go-chi/chi", "Web frameworks"},
 		},
 		{
@@ -357,9 +382,11 @@ func TestTemplatesRender(t *testing.T) {
 			data: struct {
 				Library      *TechnologyMeta
 				Contributors []ContributorStat
+				SEO          SEOMeta
 			}{
 				Library:      &TechnologyMeta{ID: "go.chi", Name: "Chi", Lang: "Go", Category: "Web frameworks", Description: "HTTP router", ImportTokens: []string{"go-chi/chi"}},
 				Contributors: []ContributorStat{contributor},
+				SEO:          pageSEO("/libraries/go.chi", "Chi contributors"),
 			},
 			want: []string{"/api/libraries/go.chi", "/p/abc123", "Chi"},
 		},
@@ -398,7 +425,7 @@ func TestTemplatesRender(t *testing.T) {
 	// into an existing page and must not.
 	fullPages := map[string]bool{
 		"profile.html": true, "repo.html": true, "index.html": true,
-		"libraries.html": true, "library_detail.html": true,
+		"libraries.html": true, "library_detail.html": true, "landing.html": true,
 	}
 
 	for _, tc := range cases {

@@ -3,235 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hall of fame — {{.RepoRehash}}</title>
-    <meta name="description" content="Contributors, commit volume and languages for this repository, read from git history.">
+    {{template "seo" .SEO}}
     {{template "assets"}}
 </head>
 <body>
-    <div class="doc-shell">
-        <nav class="doc-nav">
-            <a href="/" class="rail-brand">
-                {{template "logomark"}}
-                <span class="wordmark">Sourcerer</span>
-            </a>
-            <div class="doc-nav-actions">
-                <a href="/" class="btn">Dashboard</a>
-                <a href="/hall-of-fame/{{.RepoRehash}}.svg" class="btn btn--primary">Open SVG badge</a>
-            </div>
-        </nav>
+    <div class="app-shell">
+        {{template "rail" .SEO.Nav}}
 
-        <header class="doc-hero">
-            <div class="doc-hero-meta">
-                <span class="eyebrow">Repository</span>
-                <h1>Hall of fame</h1>
-                <div class="doc-hero-tags">
-                    <span class="tag">{{.RepoRehash}}</span>
-                    <span class="tag tag--accent">{{.TotalContributors}} contributors</span>
-                </div>
-            </div>
-            <div class="doc-hero-actions">
-                <a href="/api/hall-of-fame/{{.RepoRehash}}" class="btn">JSON</a>
-            </div>
-        </header>
-
-        <div class="grid">
-            <section class="panel col-12">
-                <div class="panel-head">
-                    <h2 class="panel-title">Commit volume</h2>
-                    <span class="eyebrow">All contributors</span>
-                </div>
-
-                {{if eq .TotalCommits 0}}
-                <div class="empty">
-                    <p class="empty-title">No commits indexed yet</p>
-                    <p class="empty-hint">This page fills in once the repository has been read.</p>
-                </div>
-                {{else}}
-                <div class="ribbon">
-                    <div class="ribbon-figure">
-                        <span class="ribbon-count">{{.TotalCommits}}</span>
-                        <span class="ribbon-unit">Commits indexed</span>
+        <div class="shell-main">
+            <header class="topbar">
+                <div class="topbar-heading">
+                    <span class="eyebrow">Repository</span>
+                    <h1>{{.RepoName}}</h1>
+                    <div class="topbar-tags">
+                        {{/* The rehash is only worth showing when it differs from the name. */}}
+                        {{if ne .RepoRehash .RepoName}}<span class="tag">{{.RepoRehash}}</span>{{end}}
+                        <span class="tag tag--accent">{{.TotalContributors}} contributors</span>
                     </div>
-                    <div class="ribbon-track">
-                        <div class="ribbon-bar" role="img"
-                             aria-label="{{.TotalLinesAdded}} lines added, {{.TotalLinesDeleted}} lines deleted">
-                            <span class="ribbon-seg is-add" style="width: {{pctOf .TotalLinesAdded .TotalLinesDeleted}}%"></span>
-                            <span class="ribbon-seg is-del" style="width: {{pctOf .TotalLinesDeleted .TotalLinesAdded}}%"></span>
+                </div>
+
+                <div class="topbar-tools">
+                    <a href="/api/hall-of-fame/{{.RepoRehash}}" class="btn">JSON</a>
+                    <a href="/hall-of-fame/{{.RepoRehash}}.svg" class="btn btn--primary">Open SVG badge</a>
+                </div>
+            </header>
+
+            <main class="canvas">
+                <div class="grid">
+                    <section class="panel col-12">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Commit volume</h2>
+                            <span class="eyebrow">All contributors</span>
                         </div>
-                        <div class="ribbon-legend">
-                            <span class="is-add"><b>+{{.TotalLinesAdded}}</b> added</span>
-                            <span class="is-del"><b>&minus;{{.TotalLinesDeleted}}</b> deleted</span>
-                            <span class="is-net">net <b>{{sub .TotalLinesAdded .TotalLinesDeleted}}</b> lines</span>
-                            <span class="is-net"><b>{{.TotalContributors}}</b> contributors</span>
+
+                        {{if eq .TotalCommits 0}}
+                        <div class="empty">
+                            <p class="empty-title">No commits indexed yet</p>
+                            <p class="empty-hint">This page fills in once the repository has been read.</p>
                         </div>
-                    </div>
-                </div>
-                {{end}}
-            </section>
-
-            <section class="panel col-12">
-                <div class="panel-head">
-                    <h2 class="panel-title">Top contributors</h2>
-                    <span class="eyebrow">All time</span>
-                </div>
-                {{if not .TopContributors}}
-                <div class="empty">
-                    <p class="empty-title">No commit records found</p>
-                </div>
-                {{else}}
-                <ul class="rows rows--split">
-                    {{range $i, $c := .TopContributors}}
-                    <li>
-                        <a href="{{$c.ProfileURL}}" class="row" title="View {{$c.Name}}'s profile">
-                            <span class="row-person">
-                                <span class="rank {{if eq $i 0}}rank--1{{else if eq $i 1}}rank--2{{else if eq $i 2}}rank--3{{end}}">{{add $i 1}}</span>
-                                <span class="avatar {{if $c.IsSourcerer}}avatar--halo{{end}}">{{slice $c.Name 0 1}}</span>
-                                <span class="row-names">
-                                    <span class="row-name">{{$c.Name}}</span>
-                                    <span class="row-sub">{{$c.Email}}</span>
-                                </span>
-                            </span>
-                            <span class="tag">{{$c.Commits}} commits</span>
-                        </a>
-                    </li>
-                    {{end}}
-                </ul>
-                {{end}}
-            </section>
-
-            <section class="panel col-6">
-                <div class="panel-head">
-                    <h2 class="panel-title">Trending</h2>
-                    <span class="eyebrow">Recent activity</span>
-                </div>
-                {{if not .TrendingContributors}}
-                <div class="empty">
-                    <p class="empty-title">No recent commits</p>
-                </div>
-                {{else}}
-                <ul class="rows">
-                    {{range .TrendingContributors}}
-                    <li>
-                        <a href="{{.ProfileURL}}" class="row" title="View {{.Name}}'s profile">
-                            <span class="row-person">
-                                <span class="avatar {{if .IsSourcerer}}avatar--halo{{end}}">{{slice .Name 0 1}}</span>
-                                <span class="row-names">
-                                    <span class="row-name">{{.Name}}</span>
-                                    <span class="row-sub">{{.Email}}</span>
-                                </span>
-                            </span>
-                            <span class="tag tag--del">{{.Commits}} recent</span>
-                        </a>
-                    </li>
-                    {{end}}
-                </ul>
-                {{end}}
-            </section>
-
-            <section class="panel col-6">
-                <div class="panel-head">
-                    <h2 class="panel-title">New contributors</h2>
-                    <span class="eyebrow">First commits</span>
-                </div>
-                {{if not .NewContributors}}
-                <div class="empty">
-                    <p class="empty-title">No new contributors yet</p>
-                </div>
-                {{else}}
-                <ul class="rows">
-                    {{range .NewContributors}}
-                    <li>
-                        <a href="{{.ProfileURL}}" class="row" title="View {{.Name}}'s profile">
-                            <span class="row-person">
-                                <span class="avatar {{if .IsSourcerer}}avatar--halo{{end}}">{{slice .Name 0 1}}</span>
-                                <span class="row-names">
-                                    <span class="row-name">{{.Name}}</span>
-                                    <span class="row-sub">{{.Email}}</span>
-                                </span>
-                            </span>
-                            <span class="tag tag--add">Joined</span>
-                        </a>
-                    </li>
-                    {{end}}
-                </ul>
-                {{end}}
-            </section>
-
-            {{if .Languages}}
-            <section class="panel col-12">
-                <div class="panel-head">
-                    <h2 class="panel-title">Languages</h2>
-                    <span class="eyebrow">By lines written</span>
-                </div>
-                <div class="panel-body">
-                    <div class="langbar" role="img" aria-label="Share of lines written per language">
-                        {{range $i, $lang := .Languages}}
-                        <span class="langbar-seg" style="width: {{$lang.Percentage}}%; background-color: {{series $i}};"
-                              title="{{$lang.Tech}}: {{$lang.Percentage}}%"></span>
-                        {{end}}
-                    </div>
-                    <ul class="lang-list">
-                        {{range $i, $lang := .Languages}}
-                        <li class="lang-item">
-                            <span class="lang-name">
-                                <span class="lang-dot" style="color: {{series $i}};"></span>
-                                <span>{{$lang.Tech}}</span>
-                            </span>
-                            <span class="lang-figures">
-                                <span class="lang-pct">{{$lang.Percentage}}%</span>
-                            </span>
-                        </li>
-                        {{end}}
-                    </ul>
-                </div>
-            </section>
-            {{end}}
-
-            <section class="panel col-12">
-                <div class="panel-head">
-                    <h2 class="panel-title">Embed the badge in your README</h2>
-                    <span class="eyebrow">Markdown &amp; HTML</span>
-                </div>
-                <p class="lede" style="margin-bottom: 16px;">
-                    The badge renders live contributor counts, so it stays current without anyone updating the file.
-                </p>
-
-                <div class="embed-grid">
-                    <div>
-                        <div class="code-field">
-                            <span class="eyebrow">Markdown</span>
-                            <div class="code-block">
-                                <pre id="md-code">[![Sourcerer hall of fame]({{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg)]({{.PublicBaseURL}}/r/{{.RepoRehash}})</pre>
-                                <button type="button" class="btn btn--sm" onclick="copySnippet('md-code', 'Markdown')">Copy</button>
+                        {{else}}
+                        <div class="ribbon">
+                            <div class="ribbon-figure">
+                                <span class="ribbon-count">{{.TotalCommits}}</span>
+                                <span class="ribbon-unit">Commits indexed</span>
+                            </div>
+                            <div class="ribbon-track">
+                                <div class="ribbon-bar" role="img"
+                                     aria-label="{{.TotalLinesAdded}} lines added, {{.TotalLinesDeleted}} lines deleted">
+                                    <span class="ribbon-seg is-add" style="width: {{pctOf .TotalLinesAdded .TotalLinesDeleted}}%"></span>
+                                    <span class="ribbon-seg is-del" style="width: {{pctOf .TotalLinesDeleted .TotalLinesAdded}}%"></span>
+                                </div>
+                                <div class="ribbon-legend">
+                                    <span class="is-add"><b>+{{.TotalLinesAdded}}</b> added</span>
+                                    <span class="is-del"><b>&minus;{{.TotalLinesDeleted}}</b> deleted</span>
+                                    <span class="is-net">net <b>{{sub .TotalLinesAdded .TotalLinesDeleted}}</b> lines</span>
+                                    <span class="is-net"><b>{{.TotalContributors}}</b> contributors</span>
+                                </div>
                             </div>
                         </div>
+                        {{end}}
+                    </section>
 
-                        <div class="code-field">
-                            <span class="eyebrow">HTML</span>
-                            <div class="code-block">
-                                <pre id="html-code">&lt;a href="{{.PublicBaseURL}}/r/{{.RepoRehash}}"&gt;&lt;img src="{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer hall of fame" /&gt;&lt;/a&gt;</pre>
-                                <button type="button" class="btn btn--sm" onclick="copySnippet('html-code', 'HTML')">Copy</button>
+                    <section class="panel col-12">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Top contributors</h2>
+                            <span class="eyebrow">All time</span>
+                        </div>
+                        {{if not .TopContributors}}
+                        <div class="empty">
+                            <p class="empty-title">No commit records found</p>
+                        </div>
+                        {{else}}
+                        <ul class="rows rows--split">
+                            {{range $i, $c := .TopContributors}}
+                            <li>
+                                <a href="{{$c.ProfileURL}}" class="row" title="View {{$c.Name}}'s profile">
+                                    <span class="row-person">
+                                        <span class="rank {{if eq $i 0}}rank--1{{else if eq $i 1}}rank--2{{else if eq $i 2}}rank--3{{end}}">{{add $i 1}}</span>
+                                        <span class="avatar {{if $c.IsSourcerer}}avatar--halo{{end}}">{{slice $c.Name 0 1}}</span>
+                                        <span class="row-names">
+                                            <span class="row-name">{{$c.Name}}</span>
+                                            <span class="row-sub">{{$c.Email}}</span>
+                                        </span>
+                                    </span>
+                                    <span class="tag">{{$c.Commits}} commits</span>
+                                </a>
+                            </li>
+                            {{end}}
+                        </ul>
+                        {{end}}
+                    </section>
+
+                    <section class="panel col-6">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Trending</h2>
+                            <span class="eyebrow">Recent activity</span>
+                        </div>
+                        {{if not .TrendingContributors}}
+                        <div class="empty">
+                            <p class="empty-title">No recent commits</p>
+                        </div>
+                        {{else}}
+                        <ul class="rows">
+                            {{range .TrendingContributors}}
+                            <li>
+                                <a href="{{.ProfileURL}}" class="row" title="View {{.Name}}'s profile">
+                                    <span class="row-person">
+                                        <span class="avatar {{if .IsSourcerer}}avatar--halo{{end}}">{{slice .Name 0 1}}</span>
+                                        <span class="row-names">
+                                            <span class="row-name">{{.Name}}</span>
+                                            <span class="row-sub">{{.Email}}</span>
+                                        </span>
+                                    </span>
+                                    <span class="tag tag--del">{{.Commits}} recent</span>
+                                </a>
+                            </li>
+                            {{end}}
+                        </ul>
+                        {{end}}
+                    </section>
+
+                    <section class="panel col-6">
+                        <div class="panel-head">
+                            <h2 class="panel-title">New contributors</h2>
+                            <span class="eyebrow">First commits</span>
+                        </div>
+                        {{if not .NewContributors}}
+                        <div class="empty">
+                            <p class="empty-title">No new contributors yet</p>
+                        </div>
+                        {{else}}
+                        <ul class="rows">
+                            {{range .NewContributors}}
+                            <li>
+                                <a href="{{.ProfileURL}}" class="row" title="View {{.Name}}'s profile">
+                                    <span class="row-person">
+                                        <span class="avatar {{if .IsSourcerer}}avatar--halo{{end}}">{{slice .Name 0 1}}</span>
+                                        <span class="row-names">
+                                            <span class="row-name">{{.Name}}</span>
+                                            <span class="row-sub">{{.Email}}</span>
+                                        </span>
+                                    </span>
+                                    <span class="tag tag--add">Joined</span>
+                                </a>
+                            </li>
+                            {{end}}
+                        </ul>
+                        {{end}}
+                    </section>
+
+                    {{if .Languages}}
+                    <section class="panel col-12">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Languages</h2>
+                            <span class="eyebrow">By lines written</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="langbar" role="img" aria-label="Share of lines written per language">
+                                {{range $i, $lang := .Languages}}
+                                <span class="langbar-seg" style="width: {{$lang.Percentage}}%; background-color: {{series $i}};"
+                                      title="{{$lang.Tech}}: {{$lang.Percentage}}%"></span>
+                                {{end}}
+                            </div>
+                            <ul class="lang-list rows--split">
+                                {{range $i, $lang := .Languages}}
+                                <li class="lang-item">
+                                    <span class="lang-name">
+                                        <span class="lang-dot" style="color: {{series $i}};"></span>
+                                        <span>{{$lang.Tech}}</span>
+                                    </span>
+                                    <span class="lang-figures">
+                                        <span class="lang-pct">{{$lang.Percentage}}%</span>
+                                    </span>
+                                </li>
+                                {{end}}
+                            </ul>
+                        </div>
+                    </section>
+                    {{end}}
+
+                    <section class="panel col-12">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Embed the badge in your README</h2>
+                            <span class="eyebrow">Markdown &amp; HTML</span>
+                        </div>
+                        <p class="lede" style="margin-bottom: 16px;">
+                            The badge renders live contributor counts, so it stays current without anyone updating the file.
+                        </p>
+
+                        <div class="embed-grid">
+                            <div>
+                                <div class="code-field">
+                                    <span class="eyebrow">Markdown</span>
+                                    <div class="code-block">
+                                        <pre id="md-code">[![Sourcerer hall of fame]({{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg)]({{.PublicBaseURL}}/r/{{.RepoRehash}})</pre>
+                                        <button type="button" class="btn btn--sm" onclick="copySnippet('md-code', 'Markdown')">Copy</button>
+                                    </div>
+                                </div>
+
+                                <div class="code-field">
+                                    <span class="eyebrow">HTML</span>
+                                    <div class="code-block">
+                                        <pre id="html-code">&lt;a href="{{.PublicBaseURL}}/r/{{.RepoRehash}}"&gt;&lt;img src="{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer hall of fame" /&gt;&lt;/a&gt;</pre>
+                                        <button type="button" class="btn btn--sm" onclick="copySnippet('html-code', 'HTML')">Copy</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="code-field">
+                                <span class="eyebrow">Preview</span>
+                                <div class="badge-preview">
+                                    <img src="/hall-of-fame/{{.RepoRehash}}.svg" alt="Hall of fame badge preview" loading="lazy">
+                                </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="code-field">
-                        <span class="eyebrow">Preview</span>
-                        <div class="badge-preview">
-                            <img src="/hall-of-fame/{{.RepoRehash}}.svg" alt="Hall of fame badge preview" loading="lazy">
-                        </div>
-                    </div>
+                    </section>
                 </div>
-            </section>
+
+                <footer class="foot">
+                    <span>Sourcerer &middot; engineering profiles from git history</span>
+                    <div class="foot-links">
+                        <a href="/libraries">Libraries</a>
+                        <a href="/hall-of-fame/{{.RepoRehash}}.svg">SVG badge</a>
+                    </div>
+                </footer>
+            </main>
         </div>
-
-        <footer class="foot">
-            <span>Sourcerer &middot; engineering profiles from git history</span>
-            <div class="foot-links">
-                <a href="/libraries">Libraries</a>
-                <a href="/hall-of-fame/{{.RepoRehash}}.svg">SVG badge</a>
-            </div>
-        </footer>
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite">

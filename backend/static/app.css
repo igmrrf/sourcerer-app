@@ -1,6 +1,6 @@
 /* ==========================================================================
    Sourcerer design system
-   One sheet, every page. Light surface, mono for data, indigo for action.
+   One sheet, every page. Light surface, mono for data, purple for action.
    The signature element is .ribbon — the git diff stat line, drawn large.
    ========================================================================== */
 
@@ -231,35 +231,12 @@ textarea {
     color: var(--accent);
 }
 
-/* Doc shell: public, shareable pages. Centered, no rail. */
-.doc-shell {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 22px 24px 72px;
+/* The rail's sibling. min-width keeps grid children from overflowing. */
+.shell-main {
+    min-width: 0;
 }
 
-.doc-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    padding: 14px 18px;
-    margin-bottom: 26px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow-1);
-}
-
-.doc-nav-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-/* Topbar inside the app shell */
+/* Topbar: same header on every page */
 .topbar {
     position: sticky;
     top: 0;
@@ -276,6 +253,10 @@ textarea {
     border-bottom: 1px solid var(--line);
 }
 
+.topbar-heading {
+    min-width: 0;
+}
+
 .topbar-heading h1 {
     font-size: 1.25rem;
     font-weight: 800;
@@ -288,6 +269,22 @@ textarea {
     color: var(--ink-3);
 }
 
+/* Identity header: an avatar beside the heading, used on profiles. */
+.topbar-id {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-width: 0;
+}
+
+.topbar-tags {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 7px;
+}
+
 .topbar-tools {
     display: flex;
     align-items: center;
@@ -296,7 +293,29 @@ textarea {
 }
 
 .canvas {
+    max-width: 1480px;
     padding: 26px 32px 64px;
+}
+
+/* Hero: the introductory block above a page's panels. */
+.hero {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 30px;
+    margin-bottom: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-1);
+}
+
+.hero-title {
+    font-size: clamp(1.5rem, 3vw, 2.125rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+    max-width: 22ch;
 }
 
 /* --------------------------------------------------------------- type --- */
@@ -308,13 +327,6 @@ textarea {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink-4);
-}
-
-.page-title {
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.15;
 }
 
 .lede {
@@ -530,11 +542,11 @@ textarea {
     flex-shrink: 0;
 }
 
-.avatar--lg {
-    width: 72px;
-    height: 72px;
-    font-size: 1.75rem;
-    border-radius: var(--r-lg);
+.avatar--md {
+    width: 44px;
+    height: 44px;
+    font-size: 1.0625rem;
+    border-radius: var(--r-md);
 }
 
 .avatar--halo {
@@ -1059,89 +1071,7 @@ textarea {
     overflow: hidden;
 }
 
-/* --------------------------------------------------------- doc header --- */
-
-.doc-hero {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 24px;
-    flex-wrap: wrap;
-    padding: 26px;
-    margin-bottom: 18px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-xl);
-    box-shadow: var(--shadow-1);
-}
-
-.doc-hero-id {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    min-width: 0;
-}
-
-.doc-hero-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    min-width: 0;
-}
-
-.doc-hero-meta h1 {
-    font-size: clamp(1.5rem, 3.4vw, 2.125rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.1;
-}
-
-.doc-hero-tags {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    flex-wrap: wrap;
-}
-
-.doc-hero-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.section {
-    margin-top: 18px;
-}
-
-.section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-}
-
-.section-head h2 {
-    font-size: 1.0625rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-}
-
 /* ---------------------------------------------------------- catalogue --- */
-
-.catalog-hero {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 34px 30px;
-    margin-bottom: 26px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-xl);
-    box-shadow: var(--shadow-1);
-}
 
 .cat-group {
     margin-bottom: 30px;
@@ -1473,10 +1403,6 @@ textarea {
         gap: 18px;
     }
 
-    .doc-shell {
-        padding: 16px 16px 56px;
-    }
-
     .panel {
         padding: 18px;
         border-radius: var(--r-lg);
@@ -1490,9 +1416,7 @@ textarea {
         padding: 18px 16px 48px;
     }
 
-    .topbar-tools,
-    .doc-nav-actions,
-    .doc-hero-actions {
+    .topbar-tools {
         width: 100%;
     }
 
@@ -1517,25 +1441,14 @@ textarea {
         min-width: 0;
     }
 
-    .catalog-hero {
-        padding: 24px 18px;
+    .hero {
+        padding: 20px 18px;
     }
 
-    .doc-hero,
-    .doc-nav {
-        padding: 18px;
-    }
-
-    .avatar--lg {
-        width: 56px;
-        height: 56px;
-        font-size: 1.375rem;
-    }
-
-    .doc-hero-id {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
+    .avatar--md {
+        width: 38px;
+        height: 38px;
+        font-size: 0.9375rem;
     }
 
     /* Stack each row so names and emails keep their width instead of being

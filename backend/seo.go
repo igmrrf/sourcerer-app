@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -38,6 +39,45 @@ type SEOMeta struct {
 	// a script tag, so it must be built by newJSONLD and never from user input
 	// that has not been through encoding/json.
 	JSONLD template.JS
+	// Nav drives the sidebar, which is identical on every page.
+	Nav NavMeta
+}
+
+// NavMeta is what the shared sidebar needs to know. Every page builds one so
+// the navigation never diverges between the dashboard and the public pages.
+type NavMeta struct {
+	// Active is the highlighted entry: "overview", "libraries", "profile" or
+	// "repository".
+	Active string
+	// SignedIn switches the sidebar footer between log out and sign in.
+	SignedIn bool
+	// ProfileID is the viewer's own public profile, when they have one. Empty
+	// for anonymous visitors, which hides the "Yours" group.
+	ProfileID string
+}
+
+// navFor builds the sidebar state for a request: whether the visitor is signed
+// in, and which profile is theirs. The profile id is read, never created — a
+// visitor browsing someone else's page should not mint rows.
+func navFor(r *http.Request, active string) NavMeta {
+	email := getSessionEmail(r)
+	if email == "" {
+		return NavMeta{Active: active}
+	}
+
+	nav := NavMeta{Active: active, SignedIn: true}
+	if db == nil {
+		return nav
+	}
+	var profileID sql.NullString
+	if err := db.QueryRow("SELECT profile_id FROM public_profiles WHERE email = $1", email).Scan(&profileID); err != nil {
+		if err != sql.ErrNoRows {
+			slog.Warn("Failed to look up viewer profile id for navigation", "error", err)
+		}
+		return nav
+	}
+	nav.ProfileID = profileID.String
+	return nav
 }
 
 // newSEO fills in the defaults every page shares. Callers override what differs.
@@ -171,6 +211,9 @@ func handleSitemapXML(w http.ResponseWriter, r *http.Request) {
 // sitemapRepoRehashes returns the repositories that actually have commits, so
 // the sitemap never advertises an empty hall of fame.
 func sitemapRepoRehashes() []string {
+	if db == nil {
+		return nil
+	}
 	rows, err := db.Query(`
 		SELECT r.rehash
 		FROM repos r
@@ -198,6 +241,9 @@ func sitemapRepoRehashes() []string {
 
 // sitemapProfileIDs returns the public profiles that have something to show.
 func sitemapProfileIDs() []string {
+	if db == nil {
+		return nil
+	}
 	rows, err := db.Query(`
 		SELECT p.profile_id
 		FROM public_profiles p
@@ -289,6 +335,7 @@ func handleLanding(w http.ResponseWriter, r *http.Request) {
 		SEO          SEOMeta
 		LibraryCount int
 	}{SEO: seo, LibraryCount: libraryCount}
+	data.SEO.Nav = navFor(r, "overview")
 
 	renderTemplate(w, "landing.html", data)
 }

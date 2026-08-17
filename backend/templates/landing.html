@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{template "seo" .SEO}}
+    {{template "assets"}}
+</head>
+<body>
+    <div class="app-shell">
+        {{template "rail" .SEO.Nav}}
+
+        <div class="shell-main">
+            <header class="topbar">
+                <div class="topbar-heading">
+                    <h1>Sourcerer</h1>
+                    <p>Engineering profiles from git history</p>
+                </div>
+                <div class="topbar-tools">
+                    <a href="/libraries" class="btn">Browse libraries</a>
+                    <a href="/auth/github/login" class="btn btn--github">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                        Connect with GitHub
+                    </a>
+                </div>
+            </header>
+
+            <main class="canvas">
+                <section class="hero">
+                    <span class="eyebrow">What it does</span>
+                    <h2 class="hero-title">Your commit history already describes how you build. Sourcerer reads it back.</h2>
+                    <p class="lede">
+                        Connect a GitHub account and Sourcerer clones each repository, walks the commits, and
+                        builds a profile from what is actually there: how much you write, which languages you
+                        write it in, the habits that show up in every diff, and the libraries you reach for.
+                    </p>
+
+                    <!-- The same diff ribbon every page uses, here as an example. -->
+                    <div class="ribbon">
+                        <div class="ribbon-figure">
+                            <span class="ribbon-count">796</span>
+                            <span class="ribbon-unit">Commits, for example</span>
+                        </div>
+                        <div class="ribbon-track">
+                            <div class="ribbon-bar" role="img" aria-label="Illustration of lines added against lines deleted">
+                                <span class="ribbon-seg is-add" style="width: 73%"></span>
+                                <span class="ribbon-seg is-del" style="width: 27%"></span>
+                            </div>
+                            <div class="ribbon-legend">
+                                <span class="is-add"><b>+68,470</b> added</span>
+                                <span class="is-del"><b>&minus;25,390</b> deleted</span>
+                                <span class="is-net">net <b>43,080</b> lines</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="grid">
+                    <section class="panel col-4">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Commit volume</h2>
+                            <span class="eyebrow">Per person</span>
+                        </div>
+                        <p class="lede">
+                            Commits, lines added and lines deleted across every repository that has been
+                            indexed, split by contributor.
+                        </p>
+                    </section>
+
+                    <section class="panel col-4">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Languages and habits</h2>
+                            <span class="eyebrow">From the diffs</span>
+                        </div>
+                        <p class="lede">
+                            The language split by lines written, plus the patterns the commits reveal:
+                            indentation, naming style, commit size and when you tend to push.
+                        </p>
+                    </section>
+
+                    <section class="panel col-4">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Hall of fame</h2>
+                            <span class="eyebrow">Per repository</span>
+                        </div>
+                        <p class="lede">
+                            Every repository gets a contributor page — all-time leaders, recent activity and
+                            first-time contributors — plus an SVG badge that stays current in your README.
+                        </p>
+                    </section>
+
+                    <section class="panel col-12">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Recognized libraries</h2>
+                            <a href="/libraries" class="link-more">Browse the catalog &rarr;</a>
+                        </div>
+                        <p class="lede">
+                            Sourcerer matches imports against a curated catalog of
+                            {{if .LibraryCount}}{{.LibraryCount}} libraries and frameworks{{else}}libraries and frameworks{{end}},
+                            so you can see who has written the most React, Tokio or FastAPI code across the
+                            repositories it has read.
+                        </p>
+                    </section>
+                </div>
+
+                <footer class="foot">
+                    <span>Sourcerer &middot; engineering profiles from git history</span>
+                    <div class="foot-links">
+                        <a href="/libraries">Libraries</a>
+                        <a href="/auth/github/login">Connect with GitHub</a>
+                        <a href="/healthz">System health</a>
+                    </div>
+                </footer>
+            </main>
+        </div>
+    </div>
+</body>
+</html>

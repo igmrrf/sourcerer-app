@@ -3,83 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Libraries — Sourcerer</title>
-    <meta name="description" content="The catalog of libraries and frameworks Sourcerer recognizes in source code, grouped by domain.">
+    {{template "seo" .SEO}}
     {{template "assets"}}
 </head>
 <body>
-    <div class="doc-shell">
-        <nav class="doc-nav">
-            <a href="/" class="rail-brand">
-                {{template "logomark"}}
-                <span class="wordmark">Sourcerer</span>
-            </a>
-            <div class="doc-nav-actions">
-                <a href="/" class="btn">Dashboard</a>
-                <a href="/api/libraries" class="btn">JSON catalog</a>
-            </div>
-        </nav>
+    <div class="app-shell">
+        {{template "rail" .SEO.Nav}}
 
-        <header class="catalog-hero">
-            <span class="eyebrow">Recognition catalog</span>
-            <h1 class="page-title">Every library Sourcerer knows how to spot</h1>
-            <p class="lede">
-                Sourcerer matches the imports in your code against this list. Find a library to see who
-                has written the most with it.
-            </p>
-            <div class="search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input type="text" id="lib-search" class="search-input"
-                       placeholder="Search by name, language or import token — PyTorch, React, Tokio, GORM"
-                       oninput="filterLibraries()" autocomplete="off">
-            </div>
-            <span class="eyebrow" id="search-status" role="status" aria-live="polite"></span>
-        </header>
-
-        <main id="catalog-container">
-            {{range .}}
-            <section class="cat-group" data-category="{{.Category}}">
-                <div class="cat-head">
-                    <h2 class="cat-title">{{.Category}}</h2>
-                    <span class="eyebrow">{{len .Items}} libraries</span>
+        <div class="shell-main">
+            <header class="topbar">
+                <div class="topbar-heading">
+                    <span class="eyebrow">Recognition catalog</span>
+                    <h1>Libraries</h1>
+                    <p>Every framework and library Sourcerer knows how to spot</p>
                 </div>
+                <div class="topbar-tools">
+                    <a href="/api/libraries" class="btn">JSON catalog</a>
+                </div>
+            </header>
 
-                <div class="lib-grid">
-                    {{range .Items}}
-                    <a href="/libraries/{{.ID}}" class="lib-card" data-search="{{.Name}} {{.Lang}} {{.ID}} {{range .ImportTokens}}{{.}} {{end}}">
-                        <div>
-                            <div class="lib-head">
-                                <span class="lib-name">{{.Name}}</span>
-                                <span class="tag">{{.Lang}}</span>
-                            </div>
-                            <p class="lib-desc">{{.Description}}</p>
-                            {{if .ImportTokens}}
-                            <div class="tokens">
-                                {{range .ImportTokens}}
-                                <span class="token">{{.}}</span>
-                                {{end}}
-                            </div>
+            <main class="canvas">
+                <section class="hero">
+                    <p class="lede">
+                        Sourcerer matches the imports in your code against this list. Open a library to see who
+                        has written the most with it.
+                    </p>
+                    <div class="search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input type="text" id="lib-search" class="search-input"
+                               placeholder="Search by name, language or import token — PyTorch, React, Tokio, GORM"
+                               oninput="filterLibraries()" autocomplete="off">
+                    </div>
+                    <span class="eyebrow" id="search-status" role="status" aria-live="polite"></span>
+                </section>
+
+                <div id="catalog-container">
+                    {{range .Groups}}
+                    <section class="cat-group" data-category="{{.Category}}">
+                        <div class="cat-head">
+                            <h2 class="cat-title">{{.Category}}</h2>
+                            <span class="eyebrow">{{len .Items}} libraries</span>
+                        </div>
+
+                        <div class="lib-grid">
+                            {{range .Items}}
+                            <a href="/libraries/{{.ID}}" class="lib-card" data-search="{{.Name}} {{.Lang}} {{.ID}} {{range .ImportTokens}}{{.}} {{end}}">
+                                <div>
+                                    <div class="lib-head">
+                                        <span class="lib-name">{{.Name}}</span>
+                                        <span class="tag">{{.Lang}}</span>
+                                    </div>
+                                    <p class="lib-desc">{{.Description}}</p>
+                                    {{if .ImportTokens}}
+                                    <div class="tokens">
+                                        {{range .ImportTokens}}
+                                        <span class="token">{{.}}</span>
+                                        {{end}}
+                                    </div>
+                                    {{end}}
+                                </div>
+
+                                <div class="lib-foot">
+                                    <span>{{.ID}}</span>
+                                    <span class="link-more">Leaderboard &rarr;</span>
+                                </div>
+                            </a>
                             {{end}}
                         </div>
-
-                        <div class="lib-foot">
-                            <span>{{.ID}}</span>
-                            <span class="link-more">Leaderboard &rarr;</span>
-                        </div>
-                    </a>
+                    </section>
                     {{end}}
                 </div>
-            </section>
-            {{end}}
-        </main>
 
-        <footer class="foot">
-            <span>Sourcerer &middot; engineering profiles from git history</span>
-            <div class="foot-links">
-                <a href="/">Dashboard</a>
-                <a href="/api/libraries">JSON catalog</a>
-            </div>
-        </footer>
+                <footer class="foot">
+                    <span>Sourcerer &middot; engineering profiles from git history</span>
+                    <div class="foot-links">
+                        <a href="/">Overview</a>
+                        <a href="/api/libraries">JSON catalog</a>
+                    </div>
+                </footer>
+            </main>
+        </div>
     </div>
 
     <script>

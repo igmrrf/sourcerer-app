@@ -517,6 +517,7 @@ func main() {
 			"operatingSystem":     "Web",
 			"description":         seo.Description,
 		})
+		seo.Nav = navFor(r, "overview")
 
 		data := struct {
 			Authors []Author
@@ -1195,7 +1196,7 @@ type ProfileData struct {
 
 // buildProfileSEO writes the page metadata for a public profile. The
 // description leads with the numbers a searcher would recognise.
-func buildProfileSEO(data *ProfileData, baseURL string) {
+func buildProfileSEO(r *http.Request, data *ProfileData, baseURL string) {
 	description := fmt.Sprintf("%s has %s and %s across %s on Sourcerer. See the language split, coding habits and libraries behind the work.",
 		data.Name,
 		plural(data.TotalCommits, "commit"),
@@ -1221,6 +1222,7 @@ func buildProfileSEO(data *ProfileData, baseURL string) {
 			"url":   seo.Canonical,
 		},
 	})
+	seo.Nav = navFor(r, "profile")
 	data.SEO = seo
 }
 
@@ -1255,7 +1257,7 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		data.ProfileID = profileID
 		data.PublicBaseURL = getPublicBaseURL(r)
-		buildProfileSEO(&data, data.PublicBaseURL)
+		buildProfileSEO(r, &data, data.PublicBaseURL)
 		renderTemplate(w, "profile.html", data)
 		return
 	}
@@ -1296,7 +1298,7 @@ func handlePublicProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data.PublicBaseURL = getPublicBaseURL(r)
-	buildProfileSEO(&data, data.PublicBaseURL)
+	buildProfileSEO(r, &data, data.PublicBaseURL)
 	renderTemplate(w, "profile.html", data)
 }
 
@@ -1305,7 +1307,9 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 		name = "Sourcerer Engineer"
 	}
 
-	palette := []string{"#8b5cf6", "#a855f7", "#06b6d4", "#10b981", "#f59e0b"}
+	// Mirrors seriesPalette / --series-N, lightened where needed for the dark
+	// badge background.
+	palette := []string{"#a78bfa", "#6b8afd", "#22b8cf", "#34d399", "#fbbf24"}
 
 	var langBars strings.Builder
 	var langLegend strings.Builder
@@ -1342,7 +1346,7 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 		.stat-label { font: 600 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
 		.added { fill: #10b981; }
 		.deleted { fill: #f43f5e; }
-		.brand { font: 800 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #a855f7; }
+		.brand { font: 800 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #a78bfa; }
 	</style>
 	<rect width="495" height="195" rx="12" fill="#090514" stroke="#241b4a" stroke-width="1.5"/>
 	
@@ -1649,7 +1653,9 @@ func displayHost(baseURL string) string {
 }
 
 func generateHallOfFameSVG(data HallOfFameData) []byte {
-	palette := []string{"#8b5cf6", "#a855f7", "#06b6d4", "#10b981", "#f59e0b"}
+	// Mirrors seriesPalette / --series-N, lightened where needed for the dark
+	// badge background.
+	palette := []string{"#a78bfa", "#6b8afd", "#22b8cf", "#34d399", "#fbbf24"}
 
 	var langBars strings.Builder
 	var langLegend strings.Builder
@@ -1703,7 +1709,7 @@ func generateHallOfFameSVG(data HallOfFameData) []byte {
 
 			haloAttr := ""
 			if c.IsSourcerer {
-				haloAttr = fmt.Sprintf(`<circle cx="%d" cy="%d" r="16" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="2 2" />`, startX+16, rowY+12)
+				haloAttr = fmt.Sprintf(`<circle cx="%d" cy="%d" r="16" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="2 2" />`, startX+16, rowY+12)
 			}
 
 			b.WriteString(fmt.Sprintf(`
@@ -1830,6 +1836,7 @@ func handleHallOfFameHTML(w http.ResponseWriter, r *http.Request) {
 		data.RepoName+" contributors — hall of fame | "+siteName,
 		truncateDescription(description, 200))
 	seo.ImageAlt = "Contributor hall of fame for " + data.RepoName
+	seo.Nav = navFor(r, "repository")
 	seo.JSONLD = newJSONLD(map[string]any{
 		"@context": "https://schema.org",
 		"@type":    "CollectionPage",
@@ -2086,6 +2093,8 @@ func handleLibrariesCatalogHTML(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 
+	seo.Nav = navFor(r, "libraries")
+
 	data := struct {
 		Groups []LibraryCategoryGroup
 		SEO    SEOMeta
@@ -2119,6 +2128,8 @@ func handleLibraryDetailHTML(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 	}
+
+	seo.Nav = navFor(r, "libraries")
 
 	data := struct {
 		Library      *TechnologyMeta
