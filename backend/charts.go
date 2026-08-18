@@ -717,61 +717,6 @@ func buildLanguageDonut(stats []LangStat) LanguageDonut {
 	return donut
 }
 
-// RepoBar is one repository in the diverging added/deleted chart.
-type RepoBar struct {
-	Rehash       string
-	CommitCount  int
-	LinesAdded   int
-	LinesDeleted int
-	// AddedPct and DeletedPct are percentages of the widest repository's
-	// churn, so the bars are comparable across rows.
-	AddedPct   float64
-	DeletedPct float64
-	// CommitPct is this repository's share of the author's commits.
-	CommitPct int
-}
-
-// RepoChart is the overview's repository comparison.
-type RepoChart struct {
-	HasData      bool
-	Bars         []RepoBar
-	TotalCommits int
-	MaxChurn     int
-}
-
-func buildRepoChart(repos []RepoInfo) RepoChart {
-	chart := RepoChart{}
-	if len(repos) == 0 {
-		return chart
-	}
-	chart.HasData = true
-
-	for _, r := range repos {
-		chart.TotalCommits += r.CommitCount
-		if churn := r.LinesAdded + r.LinesDeleted; churn > chart.MaxChurn {
-			chart.MaxChurn = churn
-		}
-	}
-	scale := float64(chart.MaxChurn)
-	if scale <= 0 {
-		scale = 1
-	}
-
-	for _, r := range repos {
-		bar := RepoBar{
-			Rehash: r.Rehash, CommitCount: r.CommitCount,
-			LinesAdded: r.LinesAdded, LinesDeleted: r.LinesDeleted,
-			AddedPct:   float64(r.LinesAdded) * 100 / scale,
-			DeletedPct: float64(r.LinesDeleted) * 100 / scale,
-		}
-		if chart.TotalCommits > 0 {
-			bar.CommitPct = int(math.Round(float64(r.CommitCount) * 100 / float64(chart.TotalCommits)))
-		}
-		chart.Bars = append(chart.Bars, bar)
-	}
-	return chart
-}
-
 func handleDashboardActivity(w http.ResponseWriter, r *http.Request) {
 	email := getSessionEmail(r)
 	if email == "" {

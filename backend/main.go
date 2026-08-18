@@ -546,14 +546,6 @@ func main() {
 	// Repositories live on their own page rather than in an overview card:
 	// there is more to say per repository than a panel has room for.
 	r.Get("/repositories", handleRepositoriesPage)
-	r.Get("/dashboard/repos", func(w http.ResponseWriter, r *http.Request) {
-		email := getSessionEmail(r)
-		if email == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		renderTemplate(w, "repos.html", buildRepoChart(getReposForEmail(email)))
-	})
 	r.Get("/dashboard/repo-cards", handleDashboardRepoCards)
 
 	r.Get("/dashboard/facts", handleDashboardFacts)
@@ -903,13 +895,14 @@ func getLanguagesForEmail(email string) []LangStat {
 // public profile so both stay consistent.
 func getReposForEmail(email string) []RepoInfo {
 	rows, err := db.Query(`
-		SELECT r.rehash, COUNT(c.rehash) as commit_count,
+		SELECT r.rehash, COALESCE(r.repo_name, '') as repo_name,
+		       COUNT(c.rehash) as commit_count,
 		       COALESCE(SUM(c.num_lines_added), 0) as lines_added,
 		       COALESCE(SUM(c.num_lines_deleted), 0) as lines_deleted
 		FROM repos r
 		JOIN commits c ON c.repo_rehash = r.rehash
 		WHERE c.author_email = $1
-		GROUP BY r.rehash
+		GROUP BY r.rehash, r.repo_name
 		ORDER BY commit_count DESC`, email)
 	if err != nil {
 		slog.Error("Error querying repos", "email", email, "error", err)
@@ -920,7 +913,7 @@ func getReposForEmail(email string) []RepoInfo {
 	var repos []RepoInfo
 	for rows.Next() {
 		var repo RepoInfo
-		if err := rows.Scan(&repo.Rehash, &repo.CommitCount, &repo.LinesAdded, &repo.LinesDeleted); err == nil {
+		if err := rows.Scan(&repo.Rehash, &repo.Name, &repo.CommitCount, &repo.LinesAdded, &repo.LinesDeleted); err == nil {
 			repos = append(repos, repo)
 		}
 	}
@@ -1150,7 +1143,11 @@ func handleDashboardFacts(w http.ResponseWriter, r *http.Request) {
 }
 
 type RepoInfo struct {
-	Rehash       string
+	Rehash string
+	// Name is the owner/repository name recorded at ingestion. It is empty for
+	// repositories read before the worker started storing it, which is why
+	// every surface falls back to the rehash.
+	Name         string
 	CommitCount  int
 	LinesAdded   int
 	LinesDeleted int

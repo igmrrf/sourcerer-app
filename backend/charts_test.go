@@ -248,36 +248,6 @@ func TestLanguageDonutArcsCoverTheRing(t *testing.T) {
 	}
 }
 
-// Bars are drawn against the busiest repository, so the widest row must reach
-// full width and nothing may exceed it.
-func TestRepoChartScalesToTheWidestRepository(t *testing.T) {
-	chart := buildRepoChart([]RepoInfo{
-		{Rehash: "a/one", CommitCount: 60, LinesAdded: 800, LinesDeleted: 200},
-		{Rehash: "a/two", CommitCount: 40, LinesAdded: 100, LinesDeleted: 400},
-	})
-
-	if !chart.HasData || len(chart.Bars) != 2 {
-		t.Fatalf("chart has %d bars, want 2", len(chart.Bars))
-	}
-	if chart.MaxChurn != 1000 {
-		t.Fatalf("max churn = %d, want 1000", chart.MaxChurn)
-	}
-	if got := chart.Bars[0].AddedPct + chart.Bars[0].DeletedPct; math.Abs(got-100) > 0.01 {
-		t.Fatalf("widest repository spans %v%%, want 100%%", got)
-	}
-	for _, bar := range chart.Bars {
-		if bar.AddedPct+bar.DeletedPct > 100.01 {
-			t.Fatalf("%s overflows the track at %v%%", bar.Rehash, bar.AddedPct+bar.DeletedPct)
-		}
-	}
-	if chart.Bars[0].CommitPct != 60 || chart.Bars[1].CommitPct != 40 {
-		t.Fatalf("commit shares wrong: %d%% and %d%%", chart.Bars[0].CommitPct, chart.Bars[1].CommitPct)
-	}
-	if empty := buildRepoChart(nil); empty.HasData {
-		t.Fatal("no repositories should report no data")
-	}
-}
-
 // The chart is server-rendered SVG: it has to be complete in the response,
 // before any script has run.
 func TestActivityTemplateRendersChartWithoutScript(t *testing.T) {

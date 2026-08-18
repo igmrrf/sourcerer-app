@@ -1672,103 +1672,6 @@ textarea {
     color: var(--ink-4);
 }
 
-/* -------------------------------------------------------------- churn --- */
-
-.churn-key {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--ink-4);
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--line);
-}
-
-.churn-list {
-    list-style: none;
-    display: grid;
-    gap: 14px;
-    margin-top: 14px;
-}
-
-.churn-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 6px;
-}
-
-.churn-name {
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
-    color: var(--ink);
-    text-decoration: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.churn-name:hover {
-    color: var(--accent);
-}
-
-.churn-meta {
-    flex: none;
-    font-size: 0.72rem;
-    color: var(--ink-4);
-}
-
-.churn-bars {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    align-items: center;
-}
-
-.churn-side {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-}
-
-/* Deleted grows leftward from the centre line, added rightward. */
-.churn-side--del {
-    flex-direction: row-reverse;
-}
-
-.churn-bar {
-    flex: none;
-    height: 10px;
-    min-width: 2px;
-    border-radius: var(--r-pill);
-    animation: churn-in 0.5s var(--ease) both;
-    transform-origin: left center;
-}
-
-.churn-side--del .churn-bar {
-    transform-origin: right center;
-}
-
-.churn-bar.is-add { background: var(--add); }
-.churn-bar.is-del { background: var(--del); }
-
-.churn-figure {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.churn-figure.is-add { color: var(--add-ink); }
-.churn-figure.is-del { color: var(--del-ink); }
-
-@keyframes churn-in {
-    from { transform: scaleX(0); }
-    to { transform: scaleX(1); }
-}
-
 /* -------------------------------------------------- repository cards --- */
 /* One card per repository on /repositories: the name, a hall of fame link and
    the habit that repository pulls out of its author. */
@@ -1809,6 +1712,12 @@ textarea {
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+}
+
+/* The card leads with the repository name; the rehash follows it as a tag,
+   sized to its own text rather than stretched across the column. */
+.repo-card-ident .tag {
+    align-self: flex-start;
 }
 
 .repo-name {

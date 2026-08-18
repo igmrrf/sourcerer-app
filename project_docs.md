@@ -318,11 +318,13 @@ All routes below are served without any authentication or authorization check. S
 | Method | Endpoint | Description | Response |
 |---|---|---|---|
 | `GET` | `/` | HTMX dashboard shell; renders the full author/email list | HTML |
-| `GET` | `/dashboard/stats?email=` | Commit and line totals for any email | HTML fragment |
-| `GET` | `/dashboard/languages?email=` | Top 10 technologies for any email | HTML fragment |
-| `GET` | `/dashboard/repos?email=` | Repository breakdown for any email | HTML fragment |
-| `GET` | `/dashboard/facts?email=` | Behavioral traits for any email | HTML fragment |
-| `GET` | `/dashboard/libraries?email=` | Recognized libraries for any email | HTML fragment |
+| `GET` | `/dashboard/activity?range=` | Commit activity chart for the session user | HTML fragment |
+| `GET` | `/dashboard/punchcard` | Weekday-by-hour commit heatmap | HTML fragment |
+| `GET` | `/dashboard/languages` | Language donut | HTML fragment |
+| `GET` | `/dashboard/facts` | Behavioral traits | HTML fragment |
+| `GET` | `/dashboard/libraries` | Recognized libraries | HTML fragment |
+| `GET` | `/repositories` | Repository cards: name, hall of fame link, per-repository habits | HTML |
+| `GET` | `/dashboard/repo-cards` | The repository cards themselves | HTML fragment |
 | `GET` | `/p/{email}`, `/u/{username}` | Public developer profile page | HTML |
 | `GET` | `/badge/{identifier}[.svg]` | Dynamic profile badge | `image/svg+xml`, `max-age=1800` |
 | `GET` | `/r/{repo}`, `/hall-of-fame/{repo}` | Repository Hall of Fame showcase | HTML |
@@ -338,11 +340,14 @@ All routes below are served without any authentication or authorization check. S
 The frontend is constructed with Go templates, HTMX, and modern CSS without heavy client-side JavaScript frameworks.
 
 ### 6.1 Interactive HTMX Dashboard (`/`)
-- **Summary Metrics (`/dashboard/stats?email=...`)**: Real-time aggregation of total commits, total lines added, and lines deleted.
-- **Language Distribution (`/dashboard/languages?email=...`)**: Dynamic percentage progress bars showing language breakdowns with color coding.
-- **Repository List (`/dashboard/repos?email=...`)**: Ingested repository cards displaying commit volumes and line stats.
-- **Coding Habits & Facts (`/dashboard/facts?email=...`)**: Visual breakdown of developer traits (Night Owl / Early Bird, Weekday Warrior / Weekend Hacker, Spaces vs Tabs, CamelCase vs Snake_case, Average Commit Size).
+- **Commit Activity (`/dashboard/activity`)**: Server-rendered SVG time series with metric (commits / added / deleted / net) and range (30 days / 90 days / 12 months / all time) switchers.
+- **Punchcard (`/dashboard/punchcard`)**: Weekday-by-hour heatmap of commit times.
+- **Language Distribution (`/dashboard/languages`)**: Donut with a hover-linked legend.
+- **Coding Habits & Facts (`/dashboard/facts`)**: Visual breakdown of developer traits (Night Owl / Early Bird, Weekday Warrior / Weekend Hacker, Spaces vs Tabs, CamelCase vs Snake_case, Average Commit Size).
 - **Auto-Refresh**: Smooth background polling via HTMX (`hx-trigger="every 30s"`).
+
+### 6.1.1 Repositories (`/repositories`)
+One card per repository: the name recorded at ingestion (falling back to the rehash), the rehash, a hall of fame link, and the coding habit computed from that repository's commits alone.
 
 ### 6.2 Public Developer Profiles (`/u/{username}` & `/p/{email}`)
 - Publicly accessible, responsive profile pages for sharing portfolio stats.

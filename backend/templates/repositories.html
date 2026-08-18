@@ -29,21 +29,6 @@
             <main class="canvas">
                 <div class="grid">
                     <section class="panel col-12"
-                             hx-get="/dashboard/repos"
-                             hx-trigger="load, every 30s"
-                             hx-swap="innerHTML">
-                        <div class="panel-head">
-                            <h2 class="panel-title">Repositories</h2>
-                            <span class="eyebrow">Churn per repository</span>
-                        </div>
-                        <div class="skeleton">
-                            <div class="sk-line sk-line--medium"></div>
-                            <div class="sk-line sk-line--short"></div>
-                            <div class="sk-line sk-line--medium"></div>
-                        </div>
-                    </section>
-
-                    <section class="panel col-12"
                              hx-get="/dashboard/repo-cards"
                              hx-trigger="load, every 30s"
                              hx-swap="innerHTML">

@@ -31,7 +31,10 @@ type repoRhythm struct {
 
 // RepoCard is one repository as the template renders it.
 type RepoCard struct {
-	Rehash       string
+	Rehash string
+	// Name is what the card leads with: the owner/repository name when
+	// ingestion recorded one, and the rehash when it did not.
+	Name         string
 	CommitCount  int
 	LinesAdded   int
 	LinesDeleted int
@@ -142,9 +145,13 @@ func buildRepoCards(repos []RepoInfo, rhythms map[string]repoRhythm) RepoDirecto
 	for _, repo := range repos {
 		card := RepoCard{
 			Rehash:       repo.Rehash,
+			Name:         repo.Name,
 			CommitCount:  repo.CommitCount,
 			LinesAdded:   repo.LinesAdded,
 			LinesDeleted: repo.LinesDeleted,
+		}
+		if card.Name == "" {
+			card.Name = repo.Rehash
 		}
 		if dir.TotalCommits > 0 {
 			card.CommitPct = int(float64(repo.CommitCount)*100/float64(dir.TotalCommits) + 0.5)

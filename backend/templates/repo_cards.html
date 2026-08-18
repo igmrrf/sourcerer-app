@@ -14,7 +14,9 @@
         <article class="repo-card">
             <div class="repo-card-head">
                 <div class="repo-card-ident">
-                    <h3 class="repo-name">{{.Rehash}}</h3>
+                    <h3 class="repo-name">{{.Name}}</h3>
+                    {{/* The rehash is only worth showing when it differs from the name. */}}
+                    {{if ne .Name .Rehash}}<span class="tag">{{.Rehash}}</span>{{end}}
                     <span class="row-meta">
                         <span>{{.CommitCount}} commits</span>
                         <span>{{.CommitPct}}% of yours</span>

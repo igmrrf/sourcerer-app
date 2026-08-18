@@ -203,8 +203,10 @@ query result, so a week with no commits stays visible as a gap.
 ### Repositories
 
 `/repositories` is a signed-in page of its own rather than a card on the
-overview: the churn chart, then one card per repository carrying its name, a
-hall of fame link and the coding habit that repository pulls out of you.
+overview: one card per repository, carrying the repository name recorded at
+ingestion, its rehash, a hall of fame link and the coding habit that repository
+pulls out of you. Repositories read before the worker stored names have none, so
+every surface falls back to the rehash.
 
 The habit is computed per repository in `backend/repositories.go`, not reused
 from the profile's overall figures — the same person commits at midnight on one

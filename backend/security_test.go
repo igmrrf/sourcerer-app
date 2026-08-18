@@ -406,19 +406,14 @@ func TestTemplatesRender(t *testing.T) {
 			want: []string{"Go", "100%", "donut-seg"},
 		},
 		{
-			name: "repos.html",
-			data: buildRepoChart([]RepoInfo{{Rehash: "example/repo", CommitCount: 7, LinesAdded: 90, LinesDeleted: 10}}),
-			want: []string{"example/repo", "7 commits", "+90", "/r/example/repo"},
-		},
-		{
 			name: "repositories.html",
 			data: struct{ SEO SEOMeta }{SEO: pageSEO("/repositories", "Your repositories")},
-			want: []string{"/dashboard/repos", "/dashboard/repo-cards", "/p/abc123"},
+			want: []string{"/dashboard/repo-cards", "/p/abc123"},
 		},
 		{
 			name: "repo_cards.html",
-			data: buildRepoCards([]RepoInfo{{Rehash: "example/repo", CommitCount: 7, LinesAdded: 90, LinesDeleted: 10}}, nil),
-			want: []string{"example/repo", "/r/example/repo", "Hall of fame"},
+			data: buildRepoCards([]RepoInfo{{Rehash: "a1b2c3", Name: "acme/example", CommitCount: 7, LinesAdded: 90, LinesDeleted: 10}}, nil),
+			want: []string{"acme/example", "a1b2c3", "/r/a1b2c3", "Hall of fame"},
 		},
 		{
 			name: "facts.html",

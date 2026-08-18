@@ -13,8 +13,8 @@ func unixAt(year int, month time.Month, day, hour int) int64 {
 
 func TestBuildRepoCardsReadsAHabitPerRepository(t *testing.T) {
 	repos := []RepoInfo{
-		{Rehash: "acme/night", CommitCount: 30, LinesAdded: 900, LinesDeleted: 300},
-		{Rehash: "acme/day", CommitCount: 10, LinesAdded: 100, LinesDeleted: 100},
+		{Rehash: "acme/night", Name: "acme/night-shift", CommitCount: 30, LinesAdded: 900, LinesDeleted: 300},
+		{Rehash: "acme/day", Name: "acme/daylight", CommitCount: 10, LinesAdded: 100, LinesDeleted: 100},
 	}
 	rhythms := map[string]repoRhythm{
 		// Mostly after hours, and a quarter of it on weekends.
@@ -43,6 +43,9 @@ func TestBuildRepoCardsReadsAHabitPerRepository(t *testing.T) {
 	}
 
 	night := dir.Cards[0]
+	if night.Name != "acme/night-shift" {
+		t.Errorf("want the ingested repository name on the card, got %q", night.Name)
+	}
 	if night.CommitPct != 75 {
 		t.Errorf("want 75%% commit share, got %d", night.CommitPct)
 	}
@@ -87,6 +90,11 @@ func TestBuildRepoCardsSurvivesMissingRhythms(t *testing.T) {
 	if card.HasHabit {
 		t.Error("no rhythm should mean no habit")
 	}
+	// Repositories read before the worker stored names have none, and the card
+	// still has to be identifiable.
+	if card.Name != "acme/quiet" {
+		t.Errorf("want the rehash as the name fallback, got %q", card.Name)
+	}
 	if card.WorkStyle != "" || card.Schedule != "" || card.AvgCommit != "" || card.Span != "" {
 		t.Errorf("habit fields should stay empty, got %+v", card)
 	}
@@ -118,7 +126,7 @@ func TestRepoCardsTemplateShowsNameHallOfFameAndHabit(t *testing.T) {
 	}
 
 	dir := buildRepoCards(
-		[]RepoInfo{{Rehash: "acme/night", CommitCount: 30, LinesAdded: 900, LinesDeleted: 300}},
+		[]RepoInfo{{Rehash: "acme/night", Name: "acme/night-shift", CommitCount: 30, LinesAdded: 900, LinesDeleted: 300}},
 		map[string]repoRhythm{"acme/night": {
 			Commits: 30, Morning: 3, Afternoon: 6, Night: 21, Weekend: 9, Lines: 1200,
 			First: unixAt(2024, time.March, 4, 23), Last: unixAt(2026, time.August, 1, 2),
@@ -132,7 +140,8 @@ func TestRepoCardsTemplateShowsNameHallOfFameAndHabit(t *testing.T) {
 	html := out.String()
 
 	for _, want := range []string{
-		"acme/night",           // the repository name
+		"acme/night-shift",     // the repository name leads the card
+		"acme/night",           // with the rehash behind it
 		`href="/r/acme/night"`, // the hall of fame button
 		"Hall of fame",
 		"Night Owl", // the habit read from this repository alone
