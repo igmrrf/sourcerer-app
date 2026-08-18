@@ -3,31 +3,40 @@
     <span class="eyebrow">By lines written</span>
 </div>
 
-{{if not .}}
+{{if not .HasData}}
     <div class="empty">
         <p class="empty-title">No language data yet</p>
         <p class="empty-hint">Languages are detected when the CLI walks a repository. Sync a repository to start.</p>
     </div>
 {{else}}
-    <div class="panel-body">
-        <div class="langbar" role="img" aria-label="Share of lines written per language">
-            {{range $i, $lang := .}}
-            <span class="langbar-seg" style="width: {{$lang.Percentage}}%; background-color: {{series $i}};"
-                  title="{{$lang.Tech}}: {{$lang.Percentage}}%"></span>
-            {{end}}
+    <div class="donut-wrap">
+        <div class="donut" data-total="{{.TotalLines}}">
+            <svg viewBox="0 0 140 140" class="donut-svg" role="img"
+                 aria-label="Language split by lines written. {{.TopTech}} leads with {{.TopPct}} percent.">
+                <g transform="rotate(-90 70 70)">
+                    {{$d := .}}
+                    {{range .Segments}}
+                    <circle class="donut-seg" data-index="{{.Index}}"
+                            cx="70" cy="70" r="{{dec1 $d.Radius}}"
+                            stroke="{{series .Index}}"
+                            stroke-dasharray="{{dec1 .Dash}} {{dec1 .Gap}}"
+                            stroke-dashoffset="{{dec1 .Offset}}"></circle>
+                    {{end}}
+                </g>
+            </svg>
+            <div class="donut-center">
+                <span class="donut-value" data-idle="{{.TopPct}}%">{{.TopPct}}%</span>
+                <span class="donut-label" data-idle="{{.TopTech}}">{{.TopTech}}</span>
+            </div>
         </div>
 
-        <ul class="lang-list">
-            {{range $i, $lang := .}}
-            <li class="lang-item">
-                <span class="lang-name">
-                    <span class="lang-dot" style="color: {{series $i}};"></span>
-                    <span>{{$lang.Tech}}</span>
-                </span>
-                <span class="lang-figures">
-                    <span class="lang-pct">{{$lang.Percentage}}%</span>
-                    <span class="lang-lines">{{$lang.Lines}} lines</span>
-                </span>
+        <ul class="donut-legend">
+            {{range .Segments}}
+            <li class="donut-item" data-index="{{.Index}}" data-tech="{{.Tech}}" data-pct="{{.Percentage}}%" tabindex="0">
+                <span class="lang-dot" style="color: {{series .Index}};"></span>
+                <span class="donut-tech">{{.Tech}}</span>
+                <span class="donut-pct">{{.Percentage}}%</span>
+                <span class="donut-lines">{{.Lines}}</span>
             </li>
             {{end}}
         </ul>

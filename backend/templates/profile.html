@@ -21,7 +21,11 @@
                 </div>
 
                 <div class="topbar-tools">
-                    <a href="/badge/{{.ProfileID}}.svg" class="btn">SVG badge</a>
+                    <a href="/badge/{{.ProfileID}}.svg?download=1" class="btn" download>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>
+                        Download SVG
+                    </a>
+                    <button type="button" class="btn" onclick="copySVG('/badge/{{.ProfileID}}.svg')">Copy SVG</button>
                     <button type="button" class="btn" onclick="copyProfileLink()">Copy link</button>
                     <button type="button" class="btn btn--primary" onclick="shareProfile()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5 20 4"/><path d="M20 4v6"/><path d="M20 4h-6"/><path d="M19 14v4.5A2.5 2.5 0 0 1 16.5 21h-9A2.5 2.5 0 0 1 5 18.5v-9A2.5 2.5 0 0 1 7.5 7H12"/></svg>
@@ -259,6 +263,10 @@
                                 <div class="badge-preview">
                                     <img src="/badge/{{.ProfileID}}.svg" alt="{{.Name}} Sourcerer profile badge" loading="lazy">
                                 </div>
+                                <div class="badge-actions">
+                                    <a href="/badge/{{.ProfileID}}.svg?download=1" class="btn btn--sm" download>Download SVG</a>
+                                    <button type="button" class="btn btn--sm" onclick="copySVG('/badge/{{.ProfileID}}.svg')">Copy SVG</button>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -268,7 +276,7 @@
                     <span>Sourcerer &middot; engineering profiles from git history</span>
                     <div class="foot-links">
                         <a href="/libraries">Libraries</a>
-                        <a href="/badge/{{.ProfileID}}.svg">SVG badge</a>
+                        <a href="/badge/{{.ProfileID}}.svg?download=1" download>Download SVG badge</a>
                     </div>
                 </footer>
             </main>
@@ -297,6 +305,16 @@
                 document.execCommand('copy');
                 showToast(label + ' snippet copied');
             });
+        }
+
+        // The badge is markup, so the useful thing to put on the clipboard is
+        // the source itself — paste straight into a README or an editor.
+        function copySVG(url) {
+            fetch(url, { credentials: 'same-origin' })
+                .then(res => res.ok ? res.text() : Promise.reject(new Error(res.status)))
+                .then(svg => navigator.clipboard.writeText(svg))
+                .then(() => showToast('SVG copied to clipboard'))
+                .catch(() => showToast('Could not copy — use Download SVG instead'));
         }
 
         function copyProfileLink() {

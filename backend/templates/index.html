@@ -47,17 +47,21 @@
                 </div>
             </header>
 
+            {{/* The chart range lives outside the swapped panel so a background
+                 refresh keeps whichever range was picked. */}}
+            <input type="hidden" id="range-input" name="range" value="30d">
+
             <main class="canvas">
                 <div class="grid">
-                    <!-- Commit volume and the diff it produced -->
-                    <section class="panel col-12"
-                             hx-get="/dashboard/stats"
-                             hx-include="#email-select"
-                             hx-trigger="load, change from:#email-select, every 30s"
+                    <!-- Commits over time: the overview's centrepiece -->
+                    <section class="panel panel--chart col-12" id="activity-panel"
+                             hx-get="/dashboard/activity"
+                             hx-include="#email-select, #range-input"
+                             hx-trigger="load, change from:#email-select, every 30s, refresh"
                              hx-swap="innerHTML">
                         <div class="panel-head">
-                            <h2 class="panel-title">Commit volume</h2>
-                            <span class="eyebrow">All indexed repositories</span>
+                            <h2 class="panel-title">Commit activity</h2>
+                            <span class="eyebrow">Loading</span>
                         </div>
                         <div class="skeleton">
                             <div class="sk-line sk-line--hero"></div>
@@ -65,7 +69,23 @@
                         </div>
                     </section>
 
-                    <section class="panel col-6"
+                    <section class="panel col-8"
+                             hx-get="/dashboard/punchcard"
+                             hx-include="#email-select"
+                             hx-trigger="load, change from:#email-select, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">When you commit</h2>
+                            <span class="eyebrow">Weekday by hour</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--medium"></div>
+                            <div class="sk-line sk-line--short"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                        </div>
+                    </section>
+
+                    <section class="panel col-4"
                              hx-get="/dashboard/languages"
                              hx-include="#email-select"
                              hx-trigger="load, change from:#email-select, every 30s"
@@ -98,22 +118,6 @@
                     </section>
 
                     <section class="panel col-6"
-                             hx-get="/dashboard/repos"
-                             hx-include="#email-select"
-                             hx-trigger="load, change from:#email-select, every 30s"
-                             hx-swap="innerHTML">
-                        <div class="panel-head">
-                            <h2 class="panel-title">Repositories</h2>
-                            <span class="eyebrow">Indexed</span>
-                        </div>
-                        <div class="skeleton">
-                            <div class="sk-line sk-line--medium"></div>
-                            <div class="sk-line sk-line--short"></div>
-                            <div class="sk-line sk-line--medium"></div>
-                        </div>
-                    </section>
-
-                    <section class="panel col-6"
                              hx-get="/dashboard/libraries"
                              hx-include="#email-select"
                              hx-trigger="load, change from:#email-select, every 30s"
@@ -135,8 +139,9 @@
                     <div class="foot-links">
                         {{if .User}}
                         <a href="/p/{{.User.PublicProfileID}}">Public profile</a>
-                        <a href="/badge/{{.User.PublicProfileID}}.svg">SVG badge</a>
+                        <a href="/badge/{{.User.PublicProfileID}}.svg?download=1" download>Download SVG badge</a>
                         {{end}}
+                        <a href="/repositories">Repositories</a>
                         <a href="/libraries">Libraries</a>
                         <a href="/healthz">System health</a>
                     </div>
@@ -144,5 +149,143 @@
             </main>
         </div>
     </div>
+
+    <script>
+    // Chart interaction. Everything is delegated off the document so it keeps
+    // working after htmx swaps a panel out from under it, and every chart is
+    // readable without any of this running.
+    (function () {
+        var metric = 'commits';
+
+        function syncMetric() {
+            document.querySelectorAll('.chart').forEach(function (chart) {
+                chart.setAttribute('data-metric', metric);
+            });
+            document.querySelectorAll('.seg[data-metric]').forEach(function (btn) {
+                btn.classList.toggle('is-active', btn.dataset.metric === metric);
+            });
+        }
+
+        function showPoint(hit) {
+            var chart = hit.closest('.chart');
+            if (!chart) return;
+
+            var x = hit.dataset.x;
+            var y = hit.dataset['y' + metric.charAt(0).toUpperCase() + metric.slice(1)];
+            var line = chart.querySelector('.chart-crosshair');
+            var dot = chart.querySelector('.chart-dot');
+            line.setAttribute('x1', x);
+            line.setAttribute('x2', x);
+            dot.setAttribute('cx', x);
+            dot.setAttribute('cy', y);
+            chart.classList.add('is-active');
+
+            var tip = chart.querySelector('.chart-tip');
+            tip.querySelector('.chart-tip-title').textContent = hit.dataset.title;
+            tip.querySelector('.chart-tip-commits').textContent = hit.dataset.commits;
+            tip.querySelector('.chart-tip-added').textContent = hit.dataset.added;
+            tip.querySelector('.chart-tip-deleted').textContent = hit.dataset.deleted;
+            tip.hidden = false;
+
+            // The SVG scales with the panel, so position from real geometry:
+            // centred on the bucket, pinned just inside the top of the plot.
+            var box = hit.getBoundingClientRect();
+            var frame = chart.getBoundingClientRect();
+            var plot = chart.querySelector('.chart-svg').getBoundingClientRect();
+            // scrollLeft matters on phones, where the plot scrolls inside .chart.
+            var left = box.left + box.width / 2 - frame.left + chart.scrollLeft;
+            var edge = tip.offsetWidth / 2 + 8;
+            var maxLeft = chart.scrollWidth - edge;
+            tip.style.left = Math.min(Math.max(left, edge), maxLeft) + 'px';
+            tip.style.top = (plot.top - frame.top + 4) + 'px';
+        }
+
+        function clearCharts() {
+            document.querySelectorAll('.chart').forEach(function (chart) {
+                chart.classList.remove('is-active');
+                var tip = chart.querySelector('.chart-tip');
+                if (tip) tip.hidden = true;
+            });
+        }
+
+        function showPunch(cell) {
+            var punch = cell.closest('.punch');
+            if (punch) punch.querySelector('.punch-readout').textContent = cell.dataset.label;
+        }
+
+        function clearPunch() {
+            document.querySelectorAll('.punch-readout').forEach(function (el) {
+                el.textContent = el.dataset.idle;
+            });
+        }
+
+        function showLanguage(item) {
+            var wrap = item.closest('.donut-wrap');
+            var donut = wrap.querySelector('.donut');
+            wrap.querySelectorAll('.donut-item').forEach(function (el) {
+                el.classList.toggle('is-active', el === item);
+            });
+            donut.querySelectorAll('.donut-seg').forEach(function (seg) {
+                seg.classList.toggle('is-dim', seg.dataset.index !== item.dataset.index);
+            });
+            donut.querySelector('.donut-value').textContent = item.dataset.pct;
+            donut.querySelector('.donut-label').textContent = item.dataset.tech;
+        }
+
+        function clearLanguages() {
+            document.querySelectorAll('.donut-wrap').forEach(function (wrap) {
+                wrap.querySelectorAll('.donut-item').forEach(function (el) {
+                    el.classList.remove('is-active');
+                });
+                wrap.querySelectorAll('.donut-seg').forEach(function (seg) {
+                    seg.classList.remove('is-dim');
+                });
+                wrap.querySelectorAll('.donut-value, .donut-label').forEach(function (el) {
+                    el.textContent = el.dataset.idle;
+                });
+            });
+        }
+
+        function highlight(target) {
+            var hit = target.closest('.chart-hit');
+            if (hit) { showPoint(hit); } else { clearCharts(); }
+
+            var cell = target.closest('.punch-cell[data-label]');
+            if (cell) { showPunch(cell); } else { clearPunch(); }
+
+            var item = target.closest('.donut-item');
+            if (item) { showLanguage(item); } else { clearLanguages(); }
+        }
+
+        document.addEventListener('click', function (e) {
+            var metricBtn = e.target.closest('.seg[data-metric]');
+            if (metricBtn) {
+                metric = metricBtn.dataset.metric;
+                syncMetric();
+                return;
+            }
+            var rangeBtn = e.target.closest('.seg[data-range]');
+            if (rangeBtn) {
+                document.getElementById('range-input').value = rangeBtn.dataset.range;
+                htmx.trigger('#activity-panel', 'refresh');
+            }
+        });
+
+        document.addEventListener('mouseover', function (e) { highlight(e.target); });
+        document.addEventListener('focusin', function (e) { highlight(e.target); });
+        // mouseleave does not bubble, so this only fires when the pointer
+        // leaves the window — where no further mouseover would clear anything.
+        document.addEventListener('mouseleave', function () {
+            clearCharts();
+            clearPunch();
+            clearLanguages();
+        });
+
+        // A swap replaces the markup the handlers were reading, so restore the
+        // metric the reader picked rather than snapping back to commits.
+        document.body.addEventListener('htmx:afterSwap', syncMetric);
+        syncMetric();
+    })();
+    </script>
 </body>
 </html>

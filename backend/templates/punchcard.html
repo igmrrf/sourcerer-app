@@ -1,0 +1,52 @@
+<div class="panel-head panel-head--stack">
+    <div>
+        <h2 class="panel-title">When you commit</h2>
+        <span class="eyebrow">Weekday by hour, UTC</span>
+    </div>
+    {{if .HasData}}
+    <div class="punch-scale" aria-hidden="true">
+        <span>Less</span>
+        <span class="punch-cell is-l0"></span>
+        <span class="punch-cell is-l1"></span>
+        <span class="punch-cell is-l2"></span>
+        <span class="punch-cell is-l3"></span>
+        <span class="punch-cell is-l4"></span>
+        <span>More</span>
+    </div>
+    {{end}}
+</div>
+
+{{if not .HasData}}
+<div class="empty">
+    <p class="empty-title">No commit times yet</p>
+    <p class="empty-hint">The heatmap fills in once a repository has been read.</p>
+</div>
+{{else}}
+<div class="punch">
+    <div class="punch-grid" role="img"
+         aria-label="Commit heatmap by weekday and hour. Peak is {{.PeakLabel}} with {{.PeakCommits}} commits.">
+        <div class="punch-hours" aria-hidden="true">
+            {{range .Hours}}<span class="punch-hour">{{.Label}}</span>{{end}}
+        </div>
+        {{range .Rows}}
+        <div class="punch-row">
+            <span class="punch-day" aria-hidden="true">{{.Short}}</span>
+            <div class="punch-cells">
+                {{range .Cells}}
+                <span class="punch-cell is-l{{.Level}}" data-label="{{.Label}}" tabindex="0"></span>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+
+    <p class="punch-readout" role="status" aria-live="polite" data-idle="Peak: {{.PeakLabel}} — {{.PeakCommits}} commits">
+        Peak: {{.PeakLabel}} &mdash; {{.PeakCommits}} commits
+    </p>
+
+    <div class="punch-facts">
+        <span><b>{{.MorningShare}}%</b> of commits land in the morning</span>
+        <span><b>{{.NightShare}}%</b> land at night</span>
+    </div>
+</div>
+{{end}}

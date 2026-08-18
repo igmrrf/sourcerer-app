@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{template "seo" .SEO}}
+    {{template "assets"}}
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="app-shell">
+        {{template "rail" .SEO.Nav}}
+
+        <div class="shell-main">
+            <header class="topbar">
+                <div class="topbar-heading">
+                    <h1>Repositories</h1>
+                    <p>Every repository read for you &middot; refreshes every 30 seconds</p>
+                </div>
+
+                <div class="topbar-tools">
+                    <a href="/auth/github/login" class="btn" title="Re-read your repositories from GitHub">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5A8 8 0 0 0 6.3 6.3L4 8.5"/><path d="M4 4.5v4h4"/><path d="M4 12.5a8 8 0 0 0 13.7 5.2L20 15.5"/><path d="M20 19.5v-4h-4"/></svg>
+                        Sync repositories
+                    </a>
+                </div>
+            </header>
+
+            <main class="canvas">
+                <div class="grid">
+                    <section class="panel col-12"
+                             hx-get="/dashboard/repos"
+                             hx-trigger="load, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Repositories</h2>
+                            <span class="eyebrow">Churn per repository</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--medium"></div>
+                            <div class="sk-line sk-line--short"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                        </div>
+                    </section>
+
+                    <section class="panel col-12"
+                             hx-get="/dashboard/repo-cards"
+                             hx-trigger="load, every 30s"
+                             hx-swap="innerHTML">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Every repository</h2>
+                            <span class="eyebrow">Name, hall of fame and habits</span>
+                        </div>
+                        <div class="skeleton">
+                            <div class="sk-line sk-line--hero"></div>
+                            <div class="sk-line sk-line--short"></div>
+                            <div class="sk-line sk-line--medium"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <footer class="foot">
+                    <span>Sourcerer &middot; engineering profiles from git history</span>
+                    <div class="foot-links">
+                        {{if .SEO.Nav.ProfileID}}
+                        <a href="/p/{{.SEO.Nav.ProfileID}}">Public profile</a>
+                        <a href="/badge/{{.SEO.Nav.ProfileID}}.svg?download=1" download>Download SVG badge</a>
+                        {{end}}
+                        <a href="/libraries">Libraries</a>
+                        <a href="/healthz">System health</a>
+                    </div>
+                </footer>
+            </main>
+        </div>
+    </div>
+</body>
+</html>

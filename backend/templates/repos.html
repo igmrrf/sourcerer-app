@@ -1,34 +1,41 @@
 <div class="panel-head">
     <h2 class="panel-title">Repositories</h2>
-    <span class="eyebrow">Indexed</span>
+    <span class="eyebrow">Churn per repository</span>
 </div>
 
-{{if not .}}
+{{if not .HasData}}
     <div class="empty">
         <p class="empty-title">No repositories analyzed yet</p>
         <p class="empty-hint">Repositories appear here as the worker finishes cloning and reading them.</p>
     </div>
 {{else}}
-    <ul class="rows rows--scroll">
-        {{range .}}
-        <li class="row">
-            <div class="row-main">
-                <span class="row-title">{{.Rehash}}</span>
-                <span class="row-meta">
-                    <span>{{.CommitCount}} commits</span>
-                    <span class="is-add">+{{.LinesAdded}}</span>
-                    <span class="is-del">&minus;{{.LinesDeleted}}</span>
-                </span>
-                <span class="microbar" aria-hidden="true">
-                    <span class="is-add" style="width: {{pctOf .LinesAdded .LinesDeleted}}%"></span>
-                    <span class="is-del" style="width: {{pctOf .LinesDeleted .LinesAdded}}%"></span>
-                </span>
-            </div>
-            <div class="row-side">
-                <a href="/r/{{.Rehash}}" class="btn btn--sm"
-                   title="Contributor hall of fame for this repository">Hall of fame</a>
-            </div>
-        </li>
-        {{end}}
-    </ul>
+    <div class="churn">
+        <div class="churn-key" aria-hidden="true">
+            <span class="is-del">&larr; deleted</span>
+            <span class="is-add">added &rarr;</span>
+        </div>
+
+        <ul class="churn-list">
+            {{range .Bars}}
+            <li class="churn-row">
+                <div class="churn-head">
+                    <a href="/r/{{.Rehash}}" class="churn-name" title="Contributor hall of fame for this repository">{{.Rehash}}</a>
+                    <span class="churn-meta">{{.CommitCount}} commits &middot; {{.CommitPct}}% of yours</span>
+                </div>
+
+                <div class="churn-bars" role="img"
+                     aria-label="{{.LinesAdded}} lines added, {{.LinesDeleted}} lines deleted">
+                    <div class="churn-side churn-side--del">
+                        <span class="churn-bar is-del" style="width: {{dec1 .DeletedPct}}%"></span>
+                        <span class="churn-figure is-del">&minus;{{.LinesDeleted}}</span>
+                    </div>
+                    <div class="churn-side churn-side--add">
+                        <span class="churn-bar is-add" style="width: {{dec1 .AddedPct}}%"></span>
+                        <span class="churn-figure is-add">+{{.LinesAdded}}</span>
+                    </div>
+                </div>
+            </li>
+            {{end}}
+        </ul>
+    </div>
 {{end}}

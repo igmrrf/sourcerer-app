@@ -1,0 +1,82 @@
+<div class="panel-head">
+    <h2 class="panel-title">Every repository</h2>
+    <span class="eyebrow">{{.Count}} analyzed</span>
+</div>
+
+{{if not .HasData}}
+    <div class="empty">
+        <p class="empty-title">No repositories analyzed yet</p>
+        <p class="empty-hint">Repositories appear here as the worker finishes cloning and reading them.</p>
+    </div>
+{{else}}
+    <div class="repo-cards">
+        {{range .Cards}}
+        <article class="repo-card">
+            <div class="repo-card-head">
+                <div class="repo-card-ident">
+                    <h3 class="repo-name">{{.Rehash}}</h3>
+                    <span class="row-meta">
+                        <span>{{.CommitCount}} commits</span>
+                        <span>{{.CommitPct}}% of yours</span>
+                        <span class="is-add">+{{.LinesAdded}}</span>
+                        <span class="is-del">&minus;{{.LinesDeleted}}</span>
+                    </span>
+                </div>
+                <a href="/r/{{.Rehash}}" class="btn btn--sm" title="Contributor hall of fame for this repository">Hall of fame</a>
+            </div>
+
+            <span class="microbar" role="img"
+                  aria-label="{{.LinesAdded}} lines added, {{.LinesDeleted}} lines deleted">
+                <span class="is-add" style="width: {{pctOf .LinesAdded .LinesDeleted}}%"></span>
+                <span class="is-del" style="width: {{pctOf .LinesDeleted .LinesAdded}}%"></span>
+            </span>
+
+            {{if .HasHabit}}
+            <div class="facts facts--repo">
+                {{if .WorkStyle}}
+                <div class="fact">
+                    <span class="fact-icon">{{.WorkIcon}}</span>
+                    <span class="fact-body">
+                        <span class="fact-title">{{.WorkStyle}}</span>
+                        <span class="fact-desc">{{.WorkDesc}}</span>
+                    </span>
+                </div>
+                {{end}}
+
+                {{if .Schedule}}
+                <div class="fact">
+                    <span class="fact-icon">{{.ScheduleIcon}}</span>
+                    <span class="fact-body">
+                        <span class="fact-title">{{.Schedule}}</span>
+                        <span class="fact-desc">{{.ScheduleDesc}}</span>
+                    </span>
+                </div>
+                {{end}}
+
+                {{if .AvgCommit}}
+                <div class="fact">
+                    <span class="fact-icon">&#128202;</span>
+                    <span class="fact-body">
+                        <span class="fact-title mono">{{.AvgCommit}} lines</span>
+                        <span class="fact-desc">Average commit here</span>
+                    </span>
+                </div>
+                {{end}}
+
+                {{if .Span}}
+                <div class="fact">
+                    <span class="fact-icon">&#128197;</span>
+                    <span class="fact-body">
+                        <span class="fact-title mono">{{.Span}}</span>
+                        <span class="fact-desc">Your commit window</span>
+                    </span>
+                </div>
+                {{end}}
+            </div>
+            {{else}}
+            <p class="chart-note">No commit times indexed yet, so there is no habit to read here.</p>
+            {{end}}
+        </article>
+        {{end}}
+    </div>
+{{end}}

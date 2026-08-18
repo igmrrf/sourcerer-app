@@ -1,0 +1,116 @@
+<div class="panel-head panel-head--stack">
+    <div>
+        <h2 class="panel-title">Commit activity</h2>
+        <span class="eyebrow">Per {{.Unit}}, UTC</span>
+    </div>
+
+    <div class="chart-controls">
+        <div class="segmented" role="group" aria-label="Metric">
+            {{range .Metrics}}
+            <button type="button" class="seg{{if eq .Key "commits"}} is-active{{end}}" data-metric="{{.Key}}">{{.Label}}</button>
+            {{end}}
+        </div>
+        <div class="segmented" role="group" aria-label="Time range">
+            {{range .Ranges}}
+            <button type="button" class="seg{{if .IsActive}} is-active{{end}}" data-range="{{.Key}}">{{.Label}}</button>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+{{if not .HasData}}
+<div class="empty">
+    <p class="empty-title">No commits in this range</p>
+    <p class="empty-hint">Pick a longer range, or sync a repository and the chart fills in.</p>
+</div>
+{{else}}
+<div class="chart" data-metric="commits">
+    <div class="chart-figures">
+        <div class="figure">
+            <span class="figure-value">{{.TotalCommits}}</span>
+            <span class="figure-label">Commits in range</span>
+        </div>
+        <div class="figure">
+            <span class="figure-value is-add">+{{.TotalAdded}}</span>
+            <span class="figure-label">Lines added</span>
+        </div>
+        <div class="figure">
+            <span class="figure-value is-del">&minus;{{.TotalDeleted}}</span>
+            <span class="figure-label">Lines deleted</span>
+        </div>
+        <div class="figure">
+            <span class="figure-value">{{.Cadence}}</span>
+            <span class="figure-label">Commits per active {{.Unit}}</span>
+        </div>
+        <div class="figure">
+            <span class="figure-value">{{.ActiveBuckets}}<span class="figure-of">/{{.AllBuckets}}</span></span>
+            <span class="figure-label">Active {{.Unit}}s</span>
+        </div>
+    </div>
+
+    <svg class="chart-svg" viewBox="0 0 {{dec1 .Width}} {{dec1 .Height}}" role="img"
+         aria-label="Commit activity per {{.Unit}}. {{.TotalCommits}} commits in range, busiest was {{.BusiestLabel}} with {{.BusiestCommits}}.">
+        {{$c := .}}
+
+        {{/* One gridline set per metric — the scales are nowhere near each other. */}}
+        {{range .Metrics}}
+        <g class="metric-layer chart-grid" data-metric="{{.Key}}">
+            {{range .Ticks}}
+            <line x1="{{dec1 $c.PlotLeft}}" x2="{{dec1 $c.PlotRight}}" y1="{{dec1 .Y}}" y2="{{dec1 .Y}}"></line>
+            <text x="{{dec1 $c.PlotLeft}}" y="{{dec1 .Y}}" dx="-8" dy="3.5">{{.Label}}</text>
+            {{end}}
+        </g>
+        {{end}}
+
+        {{range .Metrics}}
+        <g class="metric-layer chart-series chart-series--{{.Key}}" data-metric="{{.Key}}">
+            <path class="chart-area" d="{{.Area}}"></path>
+            <path class="chart-line" d="{{.Line}}"></path>
+            {{if eq .Key "net"}}
+            <line class="chart-zero" x1="{{dec1 $c.PlotLeft}}" x2="{{dec1 $c.PlotRight}}"
+                  y1="{{dec1 .Zero}}" y2="{{dec1 .Zero}}"></line>
+            {{end}}
+        </g>
+        {{end}}
+
+        <line class="chart-crosshair" y1="{{dec1 .PlotTop}}" y2="{{dec1 .PlotBottom}}" x1="0" x2="0"></line>
+        <circle class="chart-dot" r="4.5" cx="0" cy="0"></circle>
+
+        <g class="chart-hits">
+            {{range .Buckets}}
+            <rect class="chart-hit"
+                  x="{{dec1 .HitX}}" y="{{dec1 $c.PlotTop}}"
+                  width="{{dec1 .HitW}}" height="{{dec1 $c.PlotHeight}}"
+                  tabindex="0" role="img"
+                  aria-label="{{.Title}}: {{.Commits}} commits, {{.Added}} lines added, {{.Deleted}} lines deleted"
+                  data-title="{{.Title}}"
+                  data-commits="{{.Commits}}" data-added="{{.Added}}"
+                  data-deleted="{{.Deleted}}" data-net="{{.Net}}"
+                  data-x="{{dec1 .CenterX}}"
+                  data-y-commits="{{dec1 .YCommits}}" data-y-added="{{dec1 .YAdded}}"
+                  data-y-deleted="{{dec1 .YDeleted}}" data-y-net="{{dec1 .YNet}}"></rect>
+            {{end}}
+        </g>
+
+        <g class="chart-xaxis">
+            {{range .Buckets}}
+            {{if .TickLabel}}
+            <text x="{{dec1 .CenterX}}" y="{{dec1 $c.Height}}" dy="-8">{{.TickLabel}}</text>
+            {{end}}
+            {{end}}
+        </g>
+    </svg>
+
+    <div class="chart-tip" hidden role="status" aria-live="polite">
+        <span class="chart-tip-title"></span>
+        <span class="chart-tip-row"><b class="chart-tip-commits"></b> commits</span>
+        <span class="chart-tip-row is-add">+<b class="chart-tip-added"></b></span>
+        <span class="chart-tip-row is-del">&minus;<b class="chart-tip-deleted"></b></span>
+    </div>
+
+    <p class="chart-note">
+        Busiest {{.Unit}} was <b>{{.BusiestLabel}}</b> with {{.BusiestCommits}} commits.
+        Hover or tab through the chart for a breakdown.
+    </p>
+</div>
+{{end}}

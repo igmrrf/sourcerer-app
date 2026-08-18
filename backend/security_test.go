@@ -391,23 +391,34 @@ func TestTemplatesRender(t *testing.T) {
 			want: []string{"/api/libraries/go.chi", "/p/abc123", "Chi"},
 		},
 		{
-			name: "stats.html",
-			data: struct {
-				TotalCommits int
-				LinesAdded   int
-				LinesDeleted int
-			}{TotalCommits: 42, LinesAdded: 300, LinesDeleted: 100},
-			want: []string{"42", "+300", "net <b>200</b>", "75.00%"},
+			name: "activity.html",
+			data: buildActivityChart("nobody@example.com", "30d"),
+			want: []string{"No commits in this range", "30 days", "All time"},
+		},
+		{
+			name: "punchcard.html",
+			data: buildPunchCard("nobody@example.com"),
+			want: []string{"When you commit", "No commit times yet"},
 		},
 		{
 			name: "languages.html",
-			data: []LangStat{{Tech: "Go", Lines: 10, Percentage: 100}},
-			want: []string{"Go", "100%", "10 lines"},
+			data: buildLanguageDonut([]LangStat{{Tech: "Go", Lines: 10, Percentage: 100}}),
+			want: []string{"Go", "100%", "donut-seg"},
 		},
 		{
 			name: "repos.html",
-			data: []RepoInfo{{Rehash: "example/repo", CommitCount: 7, LinesAdded: 90, LinesDeleted: 10}},
+			data: buildRepoChart([]RepoInfo{{Rehash: "example/repo", CommitCount: 7, LinesAdded: 90, LinesDeleted: 10}}),
 			want: []string{"example/repo", "7 commits", "+90", "/r/example/repo"},
+		},
+		{
+			name: "repositories.html",
+			data: struct{ SEO SEOMeta }{SEO: pageSEO("/repositories", "Your repositories")},
+			want: []string{"/dashboard/repos", "/dashboard/repo-cards", "/p/abc123"},
+		},
+		{
+			name: "repo_cards.html",
+			data: buildRepoCards([]RepoInfo{{Rehash: "example/repo", CommitCount: 7, LinesAdded: 90, LinesDeleted: 10}}, nil),
+			want: []string{"example/repo", "/r/example/repo", "Hall of fame"},
 		},
 		{
 			name: "facts.html",
@@ -426,6 +437,7 @@ func TestTemplatesRender(t *testing.T) {
 	fullPages := map[string]bool{
 		"profile.html": true, "repo.html": true, "index.html": true,
 		"libraries.html": true, "library_detail.html": true, "landing.html": true,
+		"repositories.html": true,
 	}
 
 	for _, tc := range cases {

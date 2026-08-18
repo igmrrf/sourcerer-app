@@ -181,6 +181,38 @@ version. In `ENV=development` the same route reads from disk instead.
 links, the SEO meta block and the sidebar. Pages differ in their content, never
 in their chrome.
 
+### Charts
+
+The signed-in overview is a chart surface; the public profile stays a summary,
+so the two never read as the same page. `backend/charts.go` computes all the
+geometry — paths, gridlines, hit areas, heatmap shading — and the templates
+render it as plain SVG. That means the charts are complete in the HTML response,
+before any script runs: no chart library, nothing to fetch, and no CSP
+exceptions.
+
+The inline script on `index.html` only adds interaction on top: hover and
+keyboard readouts, and switching between commits, lines added, lines deleted and
+net lines. All four series are in the DOM at once and hidden with CSS, so
+switching costs no request. The range switcher (30 days / 90 days / 12 months /
+all time) does refetch, writing its choice to a hidden input outside the swapped
+panel so the 30-second background refresh keeps whatever was picked.
+
+Buckets are computed in UTC, and the axis walks the calendar rather than the
+query result, so a week with no commits stays visible as a gap.
+
+### Repositories
+
+`/repositories` is a signed-in page of its own rather than a card on the
+overview: the churn chart, then one card per repository carrying its name, a
+hall of fame link and the coding habit that repository pulls out of you.
+
+The habit is computed per repository in `backend/repositories.go`, not reused
+from the profile's overall figures — the same person commits at midnight on one
+project and at lunchtime on another, and that difference is the point. It uses
+the profile's vocabulary (Night Owl, Weekend Warrior) so nothing has to be
+relearned, and a repository with no indexed commit times renders the name and
+the hall of fame link without inventing a habit.
+
 The icons and the social share card are committed build artifacts, regenerated
 from `backend/static/favicon.svg` by:
 

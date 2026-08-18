@@ -68,6 +68,12 @@ pull these in: {{template "seo" .SEO}}, {{template "rail" .SEO.Nav}}.
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
             Overview
         </a>
+        {{if .SignedIn}}
+        <a href="/repositories" class="rail-link{{if eq .Active "repositories"}} is-active{{end}}"{{if eq .Active "repositories"}} aria-current="page"{{end}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v14H6.5A2.5 2.5 0 0 0 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H19v4H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M9 7h6"/></svg>
+            Repositories
+        </a>
+        {{end}}
         <a href="/libraries" class="rail-link{{if eq .Active "libraries"}} is-active{{end}}"{{if eq .Active "libraries"}} aria-current="page"{{end}}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 5-9-5v-7l9-5z"/><path d="M3.3 7.8 12 12.6l8.7-4.8"/><path d="M12 12.6V20"/></svg>
             Libraries
@@ -87,8 +93,9 @@ pull these in: {{template "seo" .SEO}}, {{template "rail" .SEO.Nav}}.
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
             Public profile
         </a>
-        <a href="/badge/{{.ProfileID}}.svg" class="rail-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4.5 4L9 16"/><path d="m15 8 4.5 4L15 16"/></svg>
+        {{/* Downloads rather than navigating — the raw badge is a file, not a page. */}}
+        <a href="/badge/{{.ProfileID}}.svg?download=1" class="rail-link" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>
             README badge
         </a>
     </nav>

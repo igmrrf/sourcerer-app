@@ -213,6 +213,46 @@ func TestGeneratedAssetsArePresent(t *testing.T) {
 	}
 }
 
+// The badge is a file, not a page: ?download=1 has to come back as an
+// attachment, and a rehash containing slashes must not leak into the filename.
+func TestSVGDownloadDisposition(t *testing.T) {
+	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`)
+
+	rec := httptest.NewRecorder()
+	writeSVG(rec, httptest.NewRequest(http.MethodGet, "/hall-of-fame/a.svg", nil), "sourcerer-hall-of-fame-owner/repo", svg)
+	if got := rec.Header().Get("Content-Disposition"); got != "" {
+		t.Fatalf("plain request should render inline, got Content-Disposition %q", got)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "image/svg+xml" {
+		t.Fatalf("Content-Type = %q, want image/svg+xml", got)
+	}
+
+	rec = httptest.NewRecorder()
+	writeSVG(rec, httptest.NewRequest(http.MethodGet, "/hall-of-fame/a.svg?download=1", nil), "sourcerer-hall-of-fame-owner/repo", svg)
+	want := `attachment; filename="sourcerer-hall-of-fame-owner-repo.svg"`
+	if got := rec.Header().Get("Content-Disposition"); got != want {
+		t.Fatalf("Content-Disposition = %q, want %q", got, want)
+	}
+	if rec.Body.String() != string(svg) {
+		t.Fatalf("body was altered: %q", rec.Body.String())
+	}
+}
+
+func TestSVGDownloadNameIsSafe(t *testing.T) {
+	cases := map[string]string{
+		"sourcerer-profile-abc123": "sourcerer-profile-abc123.svg",
+		`../../etc/passwd`:         "etc-passwd.svg",
+		`a"b;c`:                    "a-b-c.svg",
+		"":                         "badge.svg",
+		"///":                      "badge.svg",
+	}
+	for in, want := range cases {
+		if got := svgDownloadName(in); got != want {
+			t.Fatalf("svgDownloadName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestTruncateDescription(t *testing.T) {
 	long := strings.Repeat("commit ", 60)
 	got := truncateDescription(long, 100)

@@ -24,7 +24,11 @@
 
                 <div class="topbar-tools">
                     <a href="/api/hall-of-fame/{{.RepoRehash}}" class="btn">JSON</a>
-                    <a href="/hall-of-fame/{{.RepoRehash}}.svg" class="btn btn--primary">Open SVG badge</a>
+                    <button type="button" class="btn" onclick="copySVG('/hall-of-fame/{{.RepoRehash}}.svg')">Copy SVG</button>
+                    <a href="/hall-of-fame/{{.RepoRehash}}.svg?download=1" class="btn btn--primary" download>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>
+                        Download SVG
+                    </a>
                 </div>
             </header>
 
@@ -215,6 +219,10 @@
                                 <div class="badge-preview">
                                     <img src="/hall-of-fame/{{.RepoRehash}}.svg" alt="Hall of fame badge preview" loading="lazy">
                                 </div>
+                                <div class="badge-actions">
+                                    <a href="/hall-of-fame/{{.RepoRehash}}.svg?download=1" class="btn btn--sm" download>Download SVG</a>
+                                    <button type="button" class="btn btn--sm" onclick="copySVG('/hall-of-fame/{{.RepoRehash}}.svg')">Copy SVG</button>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -224,7 +232,7 @@
                     <span>Sourcerer &middot; engineering profiles from git history</span>
                     <div class="foot-links">
                         <a href="/libraries">Libraries</a>
-                        <a href="/hall-of-fame/{{.RepoRehash}}.svg">SVG badge</a>
+                        <a href="/hall-of-fame/{{.RepoRehash}}.svg?download=1" download>Download SVG badge</a>
                     </div>
                 </footer>
             </main>
@@ -241,6 +249,16 @@
             document.getElementById('toast-text').textContent = message;
             toast.classList.add('is-visible');
             setTimeout(() => toast.classList.remove('is-visible'), 2500);
+        }
+
+        // The badge is markup, so the useful thing to put on the clipboard is
+        // the source itself — paste straight into a README or an editor.
+        function copySVG(url) {
+            fetch(url, { credentials: 'same-origin' })
+                .then(res => res.ok ? res.text() : Promise.reject(new Error(res.status)))
+                .then(svg => navigator.clipboard.writeText(svg))
+                .then(() => showToast('SVG copied to clipboard'))
+                .catch(() => showToast('Could not copy — use Download SVG instead'));
         }
 
         function copySnippet(elementId, label) {

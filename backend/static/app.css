@@ -1237,6 +1237,605 @@ textarea {
     min-height: 120px;
 }
 
+.badge-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* ------------------------------------------------------------- charts --- */
+/* The overview is a chart surface; the public profile stays a summary. Keep
+   the two vocabularies separate so they never read as the same page. */
+
+.panel-head--stack {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.chart-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+}
+
+.seg {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    padding: 6px 12px;
+    border-radius: var(--r-pill);
+    transition: background-color 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.seg:hover {
+    color: var(--ink);
+}
+
+.seg.is-active {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: var(--shadow-1);
+}
+
+.chart {
+    position: relative;
+}
+
+.chart-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 34px;
+    padding: 4px 0 14px;
+}
+
+.figure {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.figure-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+}
+
+.figure-value.is-add { color: var(--add-ink); }
+.figure-value.is-del { color: var(--del-ink); }
+
+.figure-of {
+    color: var(--ink-4);
+    font-weight: 500;
+}
+
+.figure-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+}
+
+.chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/* Every metric is in the DOM; only the selected one is painted, so switching
+   costs no request and no reflow of the panel. */
+.metric-layer {
+    display: none;
+}
+
+.chart[data-metric="commits"] .metric-layer[data-metric="commits"],
+.chart[data-metric="added"] .metric-layer[data-metric="added"],
+.chart[data-metric="deleted"] .metric-layer[data-metric="deleted"],
+.chart[data-metric="net"] .metric-layer[data-metric="net"] {
+    display: block;
+}
+
+.chart-grid line {
+    stroke: var(--line);
+    stroke-width: 1;
+}
+
+.chart-grid text,
+.chart-xaxis text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    fill: var(--ink-4);
+}
+
+.chart-grid text {
+    text-anchor: end;
+}
+
+.chart-xaxis text {
+    text-anchor: middle;
+}
+
+.chart-series--commits { --series-color: var(--accent); --series-wash: var(--accent-wash); }
+.chart-series--added { --series-color: var(--add); --series-wash: var(--add-wash); }
+.chart-series--deleted { --series-color: var(--del); --series-wash: var(--del-wash); }
+.chart-series--net { --series-color: var(--series-2); --series-wash: rgba(47, 75, 255, 0.1); }
+
+.chart-area {
+    fill: var(--series-wash);
+    stroke: none;
+}
+
+.chart-line {
+    fill: none;
+    stroke: var(--series-color);
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.chart-zero {
+    stroke: var(--line-strong);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.chart-hit {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+.chart-hit:hover {
+    fill: var(--accent-wash);
+    fill-opacity: 0.5;
+}
+
+.chart-hit:focus-visible {
+    fill: var(--accent-wash);
+    outline: none;
+}
+
+.chart-crosshair,
+.chart-dot {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s var(--ease);
+}
+
+.chart-crosshair {
+    stroke: var(--line-strong);
+    stroke-width: 1;
+}
+
+.chart-dot {
+    fill: var(--surface);
+    stroke: var(--accent);
+    stroke-width: 2.5;
+}
+
+.chart[data-metric="added"] .chart-dot { stroke: var(--add); }
+.chart[data-metric="deleted"] .chart-dot { stroke: var(--del); }
+.chart[data-metric="net"] .chart-dot { stroke: var(--series-2); }
+
+.chart.is-active .chart-crosshair,
+.chart.is-active .chart-dot {
+    opacity: 1;
+}
+
+.chart-tip {
+    position: absolute;
+    top: 6px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--ink);
+    color: #fff;
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-2);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* display:flex would otherwise beat the browser's [hidden] rule. */
+.chart-tip[hidden] {
+    display: none;
+}
+
+.chart-tip-title {
+    font-weight: 600;
+}
+
+.chart-tip-row {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.chart-tip-row.is-add { color: #6ee7b7; }
+.chart-tip-row.is-del { color: #fca5a5; }
+
+.chart-note {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------- punchcard --- */
+
+.punch-scale {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--ink-4);
+}
+
+.punch-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 460px;
+}
+
+.punch {
+    overflow-x: auto;
+}
+
+.punch-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+}
+
+/* The hour strip has no day label, so it is indented by the label column
+   width plus its gap to stay aligned with the cells below. */
+.punch-hours {
+    padding-left: 44px;
+}
+
+.punch-hours,
+.punch-cells {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 3px;
+}
+
+.punch-hour {
+    font-size: 0.65rem;
+    color: var(--ink-4);
+    text-align: left;
+}
+
+.punch-day {
+    font-size: 0.7rem;
+    color: var(--ink-3);
+    text-align: right;
+}
+
+.punch-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    background: var(--surface-sunken);
+    border: 1px solid transparent;
+    transition: transform 0.12s var(--ease);
+}
+
+.punch-cell.is-l1 { background: rgba(124, 58, 237, 0.2); }
+.punch-cell.is-l2 { background: rgba(124, 58, 237, 0.42); }
+.punch-cell.is-l3 { background: rgba(124, 58, 237, 0.68); }
+.punch-cell.is-l4 { background: var(--accent); }
+
+.punch-cell:hover,
+.punch-cell:focus-visible {
+    border-color: var(--ink);
+    outline: none;
+    transform: scale(1.25);
+}
+
+.punch-scale .punch-cell {
+    width: 11px;
+    height: 11px;
+    aspect-ratio: auto;
+}
+
+.punch-readout {
+    margin-top: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-2);
+}
+
+.punch-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: var(--ink-3);
+}
+
+/* -------------------------------------------------------------- donut --- */
+
+.donut-wrap {
+    display: grid;
+    gap: 18px;
+    justify-items: center;
+}
+
+.donut {
+    position: relative;
+    width: 158px;
+}
+
+.donut-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.donut-seg {
+    fill: none;
+    stroke-width: 15;
+    transition: opacity 0.16s var(--ease), stroke-width 0.16s var(--ease);
+}
+
+.donut-seg.is-dim {
+    opacity: 0.22;
+}
+
+.donut-center {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    text-align: center;
+    pointer-events: none;
+}
+
+.donut-value {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+}
+
+.donut-label {
+    font-size: 0.74rem;
+    color: var(--ink-3);
+}
+
+.donut-legend {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    list-style: none;
+}
+
+.donut-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 8px;
+    border-radius: var(--r-sm);
+    cursor: default;
+    transition: background-color 0.16s var(--ease);
+}
+
+.donut-item:hover,
+.donut-item.is-active,
+.donut-item:focus-visible {
+    background: var(--surface-sunken);
+    outline: none;
+}
+
+.donut-tech {
+    font-size: 0.84rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.donut-pct {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.donut-lines {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-4);
+}
+
+/* -------------------------------------------------------------- churn --- */
+
+.churn-key {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+}
+
+.churn-list {
+    list-style: none;
+    display: grid;
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.churn-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+
+.churn-name {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--ink);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.churn-name:hover {
+    color: var(--accent);
+}
+
+.churn-meta {
+    flex: none;
+    font-size: 0.72rem;
+    color: var(--ink-4);
+}
+
+.churn-bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.churn-side {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* Deleted grows leftward from the centre line, added rightward. */
+.churn-side--del {
+    flex-direction: row-reverse;
+}
+
+.churn-bar {
+    flex: none;
+    height: 10px;
+    min-width: 2px;
+    border-radius: var(--r-pill);
+    animation: churn-in 0.5s var(--ease) both;
+    transform-origin: left center;
+}
+
+.churn-side--del .churn-bar {
+    transform-origin: right center;
+}
+
+.churn-bar.is-add { background: var(--add); }
+.churn-bar.is-del { background: var(--del); }
+
+.churn-figure {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.churn-figure.is-add { color: var(--add-ink); }
+.churn-figure.is-del { color: var(--del-ink); }
+
+@keyframes churn-in {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+/* -------------------------------------------------- repository cards --- */
+/* One card per repository on /repositories: the name, a hall of fame link and
+   the habit that repository pulls out of its author. */
+
+.repo-cards {
+    display: grid;
+    /* min() so a phone gets one full-width card instead of a 430px card
+       overflowing a 350px panel. */
+    grid-template-columns: repeat(auto-fill, minmax(min(430px, 100%), 1fr));
+    gap: 14px;
+}
+
+.repo-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    transition: border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+.repo-card:hover {
+    border-color: var(--accent-line);
+    box-shadow: var(--shadow-1);
+}
+
+.repo-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.repo-card-ident {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.repo-name {
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Habits sit inside a card, so they get a tighter grid than the overview's
+   full-width panel and never scroll on their own. */
+.facts--repo {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 8px;
+    overflow: visible;
+}
+
+/* A habit label is a phrase, not an identifier: wrapping it keeps "Weekend
+   Warrior" readable where the panel-width rule would ellipsis it away. */
+.facts--repo .fact-title {
+    white-space: normal;
+    overflow: visible;
+}
+
 /* -------------------------------------------------------------- toast --- */
 
 .toast {
@@ -1403,6 +2002,30 @@ textarea {
         gap: 18px;
     }
 
+    /* A 1000x280 plot squeezed into a phone is 80px tall and unreadable, so
+       keep the proportions and let the reader scroll it instead. */
+    .chart {
+        overflow-x: auto;
+    }
+
+    .chart-svg {
+        min-width: 560px;
+    }
+
+    .chart-figures,
+    .chart-note {
+        position: sticky;
+        left: 0;
+    }
+
+    .chart-figures {
+        gap: 10px 20px;
+    }
+
+    .figure-value {
+        font-size: 1.2rem;
+    }
+
     .panel {
         padding: 18px;
         border-radius: var(--r-lg);
@@ -1473,6 +2096,13 @@ textarea {
         align-items: flex-start;
         gap: 4px;
         margin-bottom: 14px;
+    }
+
+    /* A repository name and its hall of fame button do not fit side by side
+       on a phone, and the name is the part worth its full width. */
+    .repo-card-head {
+        flex-direction: column;
+        align-items: stretch;
     }
 
     /* Nested scroll areas are hostile on a touch screen: let the page scroll

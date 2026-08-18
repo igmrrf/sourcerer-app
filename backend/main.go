@@ -153,6 +153,9 @@ var templateFuncs = template.FuncMap{
 		}
 		return strconv.FormatFloat(float64(a)*100/float64(total), 'f', 2, 64)
 	},
+	// dec1 renders a float with a single decimal, for chart geometry that goes
+	// straight into an attribute.
+	"dec1": func(v float64) string { return strconv.FormatFloat(v, 'f', 1, 64) },
 }
 
 // staticHandler serves the stylesheet. Dev mode reads from disk so edits show
@@ -531,51 +534,31 @@ func main() {
 		renderTemplate(w, "index.html", data)
 	})
 
-	r.Get("/dashboard/stats", func(w http.ResponseWriter, r *http.Request) {
-		email := getSessionEmail(r)
-		if email == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		var totalCommits int
-		var totalLinesAdded int
-		var totalLinesDeleted int
-
-		if err := db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", email).Scan(&totalCommits, &totalLinesAdded, &totalLinesDeleted); err != nil && err != sql.ErrNoRows {
-			slog.Error("Error querying stats for author", "email", email, "error", err)
-		}
-
-		data := struct {
-			TotalCommits int
-			LinesAdded   int
-			LinesDeleted int
-		}{
-			TotalCommits: totalCommits,
-			LinesAdded:   totalLinesAdded,
-			LinesDeleted: totalLinesDeleted,
-		}
-		renderTemplate(w, "stats.html", data)
-	})
-
 	r.Get("/dashboard/languages", func(w http.ResponseWriter, r *http.Request) {
 		email := getSessionEmail(r)
 		if email == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		renderTemplate(w, "languages.html", getLanguagesForEmail(email))
+		renderTemplate(w, "languages.html", buildLanguageDonut(getLanguagesForEmail(email)))
 	})
 
+	// Repositories live on their own page rather than in an overview card:
+	// there is more to say per repository than a panel has room for.
+	r.Get("/repositories", handleRepositoriesPage)
 	r.Get("/dashboard/repos", func(w http.ResponseWriter, r *http.Request) {
 		email := getSessionEmail(r)
 		if email == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		renderTemplate(w, "repos.html", getReposForEmail(email))
+		renderTemplate(w, "repos.html", buildRepoChart(getReposForEmail(email)))
 	})
+	r.Get("/dashboard/repo-cards", handleDashboardRepoCards)
 
 	r.Get("/dashboard/facts", handleDashboardFacts)
+	r.Get("/dashboard/activity", handleDashboardActivity)
+	r.Get("/dashboard/punchcard", handleDashboardPunchcard)
 
 	// Public Sharable Profile Routes (e.g. /u/username or /p/email)
 	r.Get("/u/{username}", handlePublicProfile)
@@ -1388,6 +1371,39 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 	return []byte(svg)
 }
 
+// svgDownloadName turns an identifier that may contain slashes or other path
+// characters into something safe to put in a Content-Disposition filename.
+func svgDownloadName(identifier string) string {
+	var b strings.Builder
+	for _, r := range identifier {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	name := strings.Trim(b.String(), "-")
+	if name == "" {
+		name = "badge"
+	}
+	return name + ".svg"
+}
+
+// writeSVG serves a badge. With ?download=1 it is sent as an attachment so the
+// browser saves the file instead of rendering it as a page.
+func writeSVG(w http.ResponseWriter, r *http.Request, identifier string, svg []byte) {
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=1800")
+	if r.URL.Query().Get("download") != "" {
+		w.Header().Set("Content-Disposition", `attachment; filename="`+svgDownloadName(identifier)+`"`)
+	}
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(svg); err != nil {
+		slog.Error("Failed to write SVG badge", "error", err)
+	}
+}
+
 func handleBadgeSVG(w http.ResponseWriter, r *http.Request) {
 	profileID := chi.URLParam(r, "identifier")
 	profileID = strings.TrimSuffix(profileID, ".svg")
@@ -1399,10 +1415,7 @@ func handleBadgeSVG(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=1800")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(svg.String))
+	writeSVG(w, r, "sourcerer-profile-"+profileID, []byte(svg.String))
 }
 
 // Hall of Fame Data Structures & Handlers (Feature: hall-of-fame)
@@ -1812,12 +1825,8 @@ func handleHallOfFameSVG(w http.ResponseWriter, r *http.Request) {
 
 	data := getHallOfFameData(repoRehash)
 	data.PublicBaseURL = getPublicBaseURL(r)
-	svgBytes := generateHallOfFameSVG(data)
 
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=1800")
-	w.WriteHeader(http.StatusOK)
-	w.Write(svgBytes)
+	writeSVG(w, r, "sourcerer-hall-of-fame-"+repoRehash, generateHallOfFameSVG(data))
 }
 
 func handleHallOfFameHTML(w http.ResponseWriter, r *http.Request) {
