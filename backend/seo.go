@@ -54,6 +54,9 @@ type NavMeta struct {
 	// ProfileID is the viewer's own public profile, when they have one. Empty
 	// for anonymous visitors, which hides the "Yours" group.
 	ProfileID string
+	// UserEmail and UserName represent the authenticated user for the drawer/sidebar.
+	UserEmail string
+	UserName  string
 }
 
 // navFor builds the sidebar state for a request: whether the visitor is signed
@@ -65,18 +68,24 @@ func navFor(r *http.Request, active string) NavMeta {
 		return NavMeta{Active: active}
 	}
 
-	nav := NavMeta{Active: active, SignedIn: true}
+	nav := NavMeta{Active: active, SignedIn: true, UserEmail: email, UserName: maskEmail(email)}
 	if db == nil {
 		return nav
 	}
 	var profileID sql.NullString
-	if err := db.QueryRow("SELECT profile_id FROM public_profiles WHERE email = $1", email).Scan(&profileID); err != nil {
-		if err != sql.ErrNoRows {
-			slog.Warn("Failed to look up viewer profile id for navigation", "error", err)
-		}
-		return nav
+	var authorName sql.NullString
+	_ = db.QueryRow(`
+		SELECT p.profile_id, a.name 
+		FROM users u
+		LEFT JOIN public_profiles p ON p.email = u.email
+		LEFT JOIN authors a ON a.email = u.email
+		WHERE u.email = $1 LIMIT 1`, email).Scan(&profileID, &authorName)
+	if profileID.Valid {
+		nav.ProfileID = profileID.String
 	}
-	nav.ProfileID = profileID.String
+	if authorName.Valid && authorName.String != "" {
+		nav.UserName = authorName.String
+	}
 	return nav
 }
 
@@ -283,7 +292,7 @@ func capSitemapSection(items []string, section string) []string {
 // noIndexPrefixes are the paths that return data or images rather than pages.
 // They stay reachable — badges are embedded in READMEs and must load — but they
 // should never be a search result themselves.
-var noIndexPrefixes = []string{"/api/", "/badge/", "/hall-of-fame/", "/dashboard/", "/auth/", "/static/"}
+var noIndexPrefixes = []string{"/api/", "/badge/", "/hall-of-fame/", "/fame/", "/dashboard/", "/auth/", "/static/"}
 
 func robotsHeaderMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
