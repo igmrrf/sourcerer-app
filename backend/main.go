@@ -142,6 +142,21 @@ var templateFuncs = template.FuncMap{
 	"series": func(i int) template.CSS { return seriesPalette[i%len(seriesPalette)] },
 	"add":    func(a, b int) int { return a + b },
 	"sub":    func(a, b int) int { return a - b },
+	"limitTokens": func(tokens []string, limit int) []string {
+		if len(tokens) <= limit {
+			return tokens
+		}
+		return tokens[:limit]
+	},
+	"hasMoreTokens": func(tokens []string, limit int) bool {
+		return len(tokens) > limit
+	},
+	"moreTokenCount": func(tokens []string, limit int) int {
+		if len(tokens) <= limit {
+			return 0
+		}
+		return len(tokens) - limit
+	},
 	// asset builds a cache-busted URL for a file under static/.
 	"asset": func(name string) string { return "/static/" + name + "?v=" + assetVersion },
 	// pctOf renders a's share of a+b as a CSS percentage, used by the diff
@@ -199,6 +214,10 @@ func isDevMode() bool {
 var publicReadOnlyCORSPrefixes = []string{
 	"/api/hall-of-fame/",
 	"/api/libraries",
+	"/fame/",
+	"/api/face/hof",
+	"/api/fame",
+	"/api/sync-status",
 }
 
 func allowedCORSOrigins() map[string]bool {
@@ -567,6 +586,34 @@ func main() {
 	r.Get("/r/{repo}.svg", handleHallOfFameSVG)
 	r.Get("/api/hall-of-fame/{repo}", handleHallOfFameAPI)
 
+	// Individual Contributor Fame Avatar Badges & Links (Feature: hall-of-fame widget)
+	r.Get("/fame/{repo}/images/{num}", handleFameImage)
+	r.Get("/fame/{owner}/{repo}/images/{num}", handleFameImage)
+	r.Get("/fame/{user}/{owner}/{repo}/images/{num}", handleFameImage)
+	r.Get("/fame/{repo}/links/{num}", handleFameLink)
+	r.Get("/fame/{owner}/{repo}/links/{num}", handleFameLink)
+	r.Get("/fame/{user}/{owner}/{repo}/links/{num}", handleFameLink)
+
+	// Hall of Fame GitHub username matching, token, and management APIs
+	r.Get("/api/face/hof/match", handleFaceHofMatch)
+	r.Get("/api/hall-of-fame/match", handleFaceHofMatch)
+	r.Get("/api/face/hof/token", handleFaceHofToken)
+	r.Post("/api/face/hof/manage", handleFaceHofManage)
+	r.Post("/api/fame/manage", handleFaceHofManage)
+
+	// Framework & Library Hall of Fame Routes (Feature: library hall-of-fame)
+	r.Get("/fame/lib/{tech}/images/{num}", handleLibraryFameImage)
+	r.Get("/fame/lib/{tech}/links/{num}", handleLibraryFameLink)
+	r.Get("/libraries/{tech}/fame/images/{num}", handleLibraryFameImage)
+	r.Get("/libraries/{tech}/fame/links/{num}", handleLibraryFameLink)
+	r.Get("/libraries/{tech}.svg", handleLibraryFameSVG)
+	r.Get("/api/hall-of-fame/lib/{tech}", handleLibraryFameAPI)
+	r.Get("/api/libraries/{tech}/fame", handleLibraryFameAPI)
+
+	// Real-time Repository Sync Status
+	r.Get("/dashboard/sync-status", handleDashboardSyncStatus)
+	r.Get("/api/sync-status", handleAPISyncStatus)
+
 	// Awesome Libraries Routes (Feature: awesome-libraries)
 	r.Get("/libraries", handleLibrariesCatalogHTML)
 	r.Get("/libraries/{tech}", handleLibraryDetailHTML)
@@ -754,7 +801,7 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		var allRepos []*github.Repository
 		opt := &github.RepositoryListByAuthenticatedUserOptions{
 			Type:        "owner",
-			ListOptions: github.ListOptions{PerPage: 10, Page: 1},
+			ListOptions: github.ListOptions{PerPage: 100, Page: 1},
 		}
 
 		for {
@@ -815,6 +862,10 @@ func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 				GitHubPushedAt: pushedAt,
 			})
 			enqueuedCount++
+		}
+
+		if enqueuedCount > 0 {
+			globalSyncTracker.StartBatch(email, enqueuedCount)
 		}
 
 		slog.Info("Repository sync planning complete", "total_repos", len(allRepos), "skipped_unchanged", skippedCount, "enqueued_for_sync", enqueuedCount, "email", email)
@@ -1297,24 +1348,28 @@ func generateBadgeSVG(name string, totalCommits int, linesAdded int, linesDelete
 	currentX := 25.0
 	barWidthTotal := 445.0
 
-	for i, l := range languages {
-		if i >= 5 {
-			break
-		}
-		color := palette[i%len(palette)]
-		w := (float64(l.Percentage) / 100.0) * barWidthTotal
-		if w < 3 && l.Percentage > 0 {
-			w = 3
-		}
-		langBars.WriteString(fmt.Sprintf(`<rect x="%.1f" y="138" width="%.1f" height="10" rx="3" fill="%s" />`, currentX, w, color))
-		currentX += w + 1
+	if len(languages) == 0 {
+		langLegend.WriteString(`<text x="25" y="168" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" font-style="italic">No languages detected yet</text>`)
+	} else {
+		for i, l := range languages {
+			if i >= 5 {
+				break
+			}
+			color := palette[i%len(palette)]
+			w := (float64(l.Percentage) / 100.0) * barWidthTotal
+			if w < 3 && l.Percentage > 0 {
+				w = 3
+			}
+			langBars.WriteString(fmt.Sprintf(`<rect x="%.1f" y="138" width="%.1f" height="10" rx="3" fill="%s" />`, currentX, w, color))
+			currentX += w + 1
 
-		if i < 4 {
-			legendX := 25 + (i * 115)
-			langLegend.WriteString(fmt.Sprintf(`
-				<circle cx="%d" cy="168" r="4.5" fill="%s"/>
-				<text x="%d" y="172" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="500">%s <tspan fill="#64748b">%d%%</tspan></text>`,
-				legendX, color, legendX+12, template.HTMLEscapeString(l.Tech), l.Percentage))
+			if i < 4 {
+				legendX := 25 + (i * 115)
+				langLegend.WriteString(fmt.Sprintf(`
+					<circle cx="%d" cy="168" r="4.5" fill="%s"/>
+					<text x="%d" y="172" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="500">%s <tspan fill="#64748b">%d%%</tspan></text>`,
+					legendX, color, legendX+12, template.HTMLEscapeString(l.Tech), l.Percentage))
+			}
 		}
 	}
 
@@ -1402,17 +1457,59 @@ func writeSVG(w http.ResponseWriter, r *http.Request, identifier string, svg []b
 }
 
 func handleBadgeSVG(w http.ResponseWriter, r *http.Request) {
-	profileID := chi.URLParam(r, "identifier")
-	profileID = strings.TrimSuffix(profileID, ".svg")
+	identifier := chi.URLParam(r, "identifier")
+	identifier = strings.TrimSuffix(identifier, ".svg")
 
-	var svg sql.NullString
-	err := db.QueryRow("SELECT badge_svg FROM public_profiles WHERE profile_id = $1", profileID).Scan(&svg)
-	if err != nil || !svg.Valid || svg.String == "" {
+	var email, profileID, name string
+	var totalCommits, linesAdded, linesDeleted int
+	var cachedSVG sql.NullString
+
+	// 1. Look up by profile_id OR email
+	err := db.QueryRow(`
+		SELECT p.profile_id, p.email, COALESCE(a.name, p.email), p.badge_svg
+		FROM public_profiles p
+		LEFT JOIN authors a ON a.email = p.email
+		WHERE p.profile_id = $1 OR p.email = $1
+		LIMIT 1`, identifier).Scan(&profileID, &email, &name, &cachedSVG)
+
+	if err == nil && cachedSVG.Valid && cachedSVG.String != "" {
+		writeSVG(w, r, "sourcerer-profile-"+identifier, []byte(cachedSVG.String))
+		return
+	}
+
+	// 2. If not found in public_profiles, check if identifier is author name or commit email
+	if err != nil {
+		err = db.QueryRow(`
+			SELECT email, COALESCE(name, email)
+			FROM authors
+			WHERE email = $1 OR name = $1
+			LIMIT 1`, identifier).Scan(&email, &name)
+	}
+	if err != nil {
+		err = db.QueryRow(`
+			SELECT author_email, COALESCE(author_name, author_email)
+			FROM commits
+			WHERE author_email = $1 OR author_name = $1
+			LIMIT 1`, identifier).Scan(&email, &name)
+	}
+
+	if err != nil || email == "" {
 		http.Error(w, "Badge not found", http.StatusNotFound)
 		return
 	}
 
-	writeSVG(w, r, "sourcerer-profile-"+profileID, []byte(svg.String))
+	_ = db.QueryRow("SELECT COUNT(*), COALESCE(SUM(num_lines_added), 0), COALESCE(SUM(num_lines_deleted), 0) FROM commits WHERE author_email = $1", email).Scan(&totalCommits, &linesAdded, &linesDeleted)
+	langs := getLanguagesForEmail(email)
+	if name == "" {
+		name = maskEmail(email)
+	}
+	svgBytes := generateBadgeSVG(name, totalCommits, linesAdded, linesDeleted, langs)
+
+	if profileID != "" {
+		_, _ = db.Exec("UPDATE public_profiles SET badge_svg = $1 WHERE profile_id = $2", string(svgBytes), profileID)
+	}
+
+	writeSVG(w, r, "sourcerer-profile-"+identifier, svgBytes)
 }
 
 // Hall of Fame Data Structures & Handlers (Feature: hall-of-fame)
@@ -1673,24 +1770,28 @@ func generateHallOfFameSVG(data HallOfFameData) []byte {
 	currentX := 25.0
 	barWidthTotal := 790.0
 
-	for i, l := range data.Languages {
-		if i >= 5 {
-			break
-		}
-		color := palette[i%len(palette)]
-		w := (float64(l.Percentage) / 100.0) * barWidthTotal
-		if w < 4 && l.Percentage > 0 {
-			w = 4
-		}
-		langBars.WriteString(fmt.Sprintf(`<rect x="%.1f" y="295" width="%.1f" height="8" rx="3" fill="%s" />`, currentX, w, color))
-		currentX += w + 1
+	if len(data.Languages) == 0 {
+		langLegend.WriteString(`<text x="25" y="329" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" font-style="italic">No languages detected yet</text>`)
+	} else {
+		for i, l := range data.Languages {
+			if i >= 5 {
+				break
+			}
+			color := palette[i%len(palette)]
+			w := (float64(l.Percentage) / 100.0) * barWidthTotal
+			if w < 4 && l.Percentage > 0 {
+				w = 4
+			}
+			langBars.WriteString(fmt.Sprintf(`<rect x="%.1f" y="295" width="%.1f" height="8" rx="3" fill="%s" />`, currentX, w, color))
+			currentX += w + 1
 
-		if i < 4 {
-			legendX := 25 + (i * 140)
-			langLegend.WriteString(fmt.Sprintf(`
-				<circle cx="%d" cy="325" r="4" fill="%s"/>
-				<text x="%d" y="329" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" font-weight="500">%s <tspan fill="#64748b">%d%%</tspan></text>`,
-				legendX, color, legendX+10, template.HTMLEscapeString(l.Tech), l.Percentage))
+			if i < 4 {
+				legendX := 25 + (i * 140)
+				langLegend.WriteString(fmt.Sprintf(`
+					<circle cx="%d" cy="325" r="4" fill="%s"/>
+					<text x="%d" y="329" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" font-weight="500">%s <tspan fill="#64748b">%d%%</tspan></text>`,
+					legendX, color, legendX+10, template.HTMLEscapeString(l.Tech), l.Percentage))
+			}
 		}
 	}
 
@@ -2043,7 +2144,7 @@ func getContributorLibraries(email string) []TechnologyMeta {
 		       COALESCE(SUM(s.num_lines_added), 0) as lines
 		FROM commit_stats s
 		JOIN commits c ON c.rehash = s.commit_rehash
-		LEFT JOIN technologies t ON (t.id = s.tech OR t.name ILIKE s.tech OR t.id = 'js.' || s.tech OR t.id = 'py.' || s.tech OR t.id = 'go.' || s.tech)
+		LEFT JOIN technologies t ON (t.id = s.tech OR t.name ILIKE s.tech OR t.id LIKE '%.' || s.tech OR s.tech LIKE '%.' || t.id OR SPLIT_PART(t.id, '.', 2) = s.tech)
 		WHERE c.author_email = $1 AND (s.type = 2 OR t.id IS NOT NULL)
 		GROUP BY tech_id, tech_name, tech_lang, tech_cat
 		ORDER BY lines DESC
@@ -2111,11 +2212,15 @@ func handleLibrariesCatalogHTML(w http.ResponseWriter, r *http.Request) {
 
 func handleLibraryDetailHTML(w http.ResponseWriter, r *http.Request) {
 	techID := chi.URLParam(r, "tech")
-	tech, contributors := getLibraryDetail(techID)
-
+	if strings.HasSuffix(techID, ".svg") {
+		handleLibraryFameSVG(w, r)
+		return
+	}
 	base := getPublicBaseURL(r)
+	slots, tech, top, trending, newContribs := getLibraryFameEntries(techID, base)
+
 	seo := newSEO(base, "/libraries/"+techID, siteName+" library", "")
-	if tech != nil {
+	if tech.Name != "" {
 		seo = newSEO(base, "/libraries/"+tech.ID,
 			tech.Name+" contributors — who writes the most "+tech.Lang+" with it | "+siteName,
 			truncateDescription(fmt.Sprintf("%s %s Ranked by lines written across every repository Sourcerer has indexed.",
@@ -2138,13 +2243,23 @@ func handleLibraryDetailHTML(w http.ResponseWriter, r *http.Request) {
 	seo.Nav = navFor(r, "libraries")
 
 	data := struct {
-		Library      *TechnologyMeta
-		Contributors []ContributorStat
-		SEO          SEOMeta
+		Library              *TechnologyMeta
+		Contributors         []ContributorStat
+		TopContributors      []ContributorStat
+		TrendingContributors []ContributorStat
+		NewContributors      []ContributorStat
+		FameSlots            []FameEntry
+		PublicBaseURL        string
+		SEO                  SEOMeta
 	}{
-		Library:      tech,
-		Contributors: contributors,
-		SEO:          seo,
+		Library:              &tech,
+		Contributors:         top,
+		TopContributors:      top,
+		TrendingContributors: trending,
+		NewContributors:      newContribs,
+		FameSlots:            slots,
+		PublicBaseURL:        base,
+		SEO:                  seo,
 	}
 
 	renderTemplate(w, "library_detail.html", data)
@@ -2186,4 +2301,59 @@ func handleDashboardLibraries(w http.ResponseWriter, r *http.Request) {
 	}
 	libs := getContributorLibraries(email)
 	renderTemplate(w, "libraries_partial.html", libs)
+}
+
+func formatTimeAgo(t time.Time) string {
+	d := time.Since(t)
+	if d < 10*time.Second {
+		return "just now"
+	}
+	if d < time.Minute {
+		return fmt.Sprintf("%d seconds ago", int(d.Seconds()))
+	}
+	if d < 2*time.Minute {
+		return "1 minute ago"
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%d minutes ago", int(d.Minutes()))
+	}
+	if d < 2*time.Hour {
+		return "1 hour ago"
+	}
+	if d < 24*time.Hour {
+		return fmt.Sprintf("%d hours ago", int(d.Hours()))
+	}
+	if d < 48*time.Hour {
+		return "yesterday"
+	}
+	return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+}
+
+func handleDashboardSyncStatus(w http.ResponseWriter, r *http.Request) {
+	email := getSessionEmail(r)
+	if email == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	status := globalSyncTracker.GetStatus(email)
+
+	type SyncViewData struct {
+		UserSyncStatus
+		TimeAgo string
+	}
+	data := SyncViewData{UserSyncStatus: status}
+	if status.LastSyncedAt > 0 {
+		data.TimeAgo = formatTimeAgo(time.Unix(status.LastSyncedAt, 0))
+	}
+	renderTemplate(w, "sync_status.html", data)
+}
+
+func handleAPISyncStatus(w http.ResponseWriter, r *http.Request) {
+	email := getSessionEmail(r)
+	if email == "" {
+		email = r.URL.Query().Get("email")
+	}
+	status := globalSyncTracker.GetStatus(email)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status)
 }

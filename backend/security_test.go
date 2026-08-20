@@ -380,13 +380,23 @@ func TestTemplatesRender(t *testing.T) {
 		{
 			name: "library_detail.html",
 			data: struct {
-				Library      *TechnologyMeta
-				Contributors []ContributorStat
-				SEO          SEOMeta
+				Library              *TechnologyMeta
+				Contributors         []ContributorStat
+				TopContributors      []ContributorStat
+				TrendingContributors []ContributorStat
+				NewContributors      []ContributorStat
+				FameSlots            []FameEntry
+				PublicBaseURL        string
+				SEO                  SEOMeta
 			}{
-				Library:      &TechnologyMeta{ID: "go.chi", Name: "Chi", Lang: "Go", Category: "Web frameworks", Description: "HTTP router", ImportTokens: []string{"go-chi/chi"}},
-				Contributors: []ContributorStat{contributor},
-				SEO:          pageSEO("/libraries/go.chi", "Chi contributors"),
+				Library:              &TechnologyMeta{ID: "go.chi", Name: "Chi", Lang: "Go", Category: "Web frameworks", Description: "HTTP router", ImportTokens: []string{"go-chi/chi"}},
+				Contributors:         []ContributorStat{contributor},
+				TopContributors:      []ContributorStat{contributor},
+				TrendingContributors: []ContributorStat{contributor},
+				NewContributors:      []ContributorStat{contributor},
+				FameSlots:            []FameEntry{{Index: 0, Name: "Alice", Badge: "top", ProfileURL: "https://sourcerer.io/p/abc123"}},
+				PublicBaseURL:        "https://sourcerer.io",
+				SEO:                  pageSEO("/libraries/go.chi", "Chi contributors"),
 			},
 			want: []string{"/api/libraries/go.chi", "/p/abc123", "Chi"},
 		},

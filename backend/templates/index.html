@@ -35,11 +35,7 @@
                     </div>
 
                     {{if .User}}
-                    <a href="/auth/github/login" class="btn" title="Re-read your repositories from GitHub">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5A8 8 0 0 0 6.3 6.3L4 8.5"/><path d="M4 4.5v4h4"/><path d="M4 12.5a8 8 0 0 0 13.7 5.2L20 15.5"/><path d="M20 19.5v-4h-4"/></svg>
-                        Sync repositories
-                    </a>
-                    <span class="chip">
+                    <span class="chip desktop-only">
                         <span class="avatar">{{slice .User.Name 0 1}}</span>
                         {{.User.Name}}
                     </span>
@@ -52,6 +48,7 @@
             <input type="hidden" id="range-input" name="range" value="30d">
 
             <main class="canvas">
+                <div id="sync-status-container" hx-get="/dashboard/sync-status" hx-trigger="load, every 10s" hx-swap="innerHTML" style="margin-bottom: 20px;"></div>
                 <div class="grid">
                     <!-- Commits over time: the overview's centrepiece -->
                     <section class="panel panel--chart col-12" id="activity-panel"

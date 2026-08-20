@@ -188,40 +188,101 @@
 
                     <section class="panel col-12">
                         <div class="panel-head">
-                            <h2 class="panel-title">Embed the badge in your README</h2>
-                            <span class="eyebrow">Markdown &amp; HTML</span>
+                            <h2 class="panel-title">Embed Hall of Fame in your README</h2>
+                            <span class="eyebrow">Interactive contributor badges &amp; summary banner</span>
                         </div>
                         <p class="lede" style="margin-bottom: 16px;">
-                            The badge renders live contributor counts, so it stays current without anyone updating the file.
+                            Hall of Fame highlights your new, trending, and top contributors automatically. Paste the embed code into your repository's README or docs.
                         </p>
 
-                        <div class="embed-grid">
-                            <div>
-                                <div class="code-field">
-                                    <span class="eyebrow">Markdown</span>
-                                    <div class="code-block">
-                                        <pre id="md-code">[![Sourcerer hall of fame]({{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg)]({{.PublicBaseURL}}/r/{{.RepoRehash}})</pre>
-                                        <button type="button" class="btn btn--sm" onclick="copySnippet('md-code', 'Markdown')">Copy</button>
+                        <!-- Format 1: Contributor Avatar Badges -->
+                        <div class="embed-section">
+                            <div class="embed-head">
+                                <h3 class="embed-subtitle">1. Contributor Avatar Badges (Classic Hall of Fame)</h3>
+                                <span class="tag tag--accent">Dynamic avatars + status badges</span>
+                            </div>
+                            <div class="fame-avatars-row">
+                                <a href="/fame/{{.RepoRehash}}/links/0" target="_blank" title="Slot 0"><img src="/fame/{{.RepoRehash}}/images/0" alt="Contributor 0" height="90"></a>
+                                <a href="/fame/{{.RepoRehash}}/links/1" target="_blank" title="Slot 1"><img src="/fame/{{.RepoRehash}}/images/1" alt="Contributor 1" height="90"></a>
+                                <a href="/fame/{{.RepoRehash}}/links/2" target="_blank" title="Slot 2"><img src="/fame/{{.RepoRehash}}/images/2" alt="Contributor 2" height="90"></a>
+                                <a href="/fame/{{.RepoRehash}}/links/3" target="_blank" title="Slot 3"><img src="/fame/{{.RepoRehash}}/images/3" alt="Contributor 3" height="90"></a>
+                                <a href="/fame/{{.RepoRehash}}/links/4" target="_blank" title="Slot 4"><img src="/fame/{{.RepoRehash}}/images/4" alt="Contributor 4" height="90"></a>
+                                <a href="/fame/{{.RepoRehash}}/links/5" target="_blank" title="Slot 5"><img src="/fame/{{.RepoRehash}}/images/5" alt="Contributor 5" height="90"></a>
+                                <a href="/fame/{{.RepoRehash}}/links/6" target="_blank" title="Slot 6"><img src="/fame/{{.RepoRehash}}/images/6" alt="Contributor 6" height="90"></a>
+                                <a href="/fame/{{.RepoRehash}}/links/7" target="_blank" title="Legend / Spacer"><img src="/fame/{{.RepoRehash}}/images/7" alt="Legend" height="90"></a>
+                            </div>
+
+                            <div class="embed-grid" style="margin-top: 14px;">
+                                <div>
+                                    <div class="code-field">
+                                        <span class="eyebrow">Markdown</span>
+                                        <div class="code-block">
+                                            <pre id="md-fame-avatars">[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/0)](https://sourcerer.io/fame/{{.RepoRehash}}/links/0)
+[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/1)](https://sourcerer.io/fame/{{.RepoRehash}}/links/1)
+[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/2)](https://sourcerer.io/fame/{{.RepoRehash}}/links/2)
+[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/3)](https://sourcerer.io/fame/{{.RepoRehash}}/links/3)
+[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/4)](https://sourcerer.io/fame/{{.RepoRehash}}/links/4)
+[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/5)](https://sourcerer.io/fame/{{.RepoRehash}}/links/5)
+[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/6)](https://sourcerer.io/fame/{{.RepoRehash}}/links/6)
+[![](https://sourcerer.io/fame/{{.RepoRehash}}/images/7)](https://sourcerer.io/fame/{{.RepoRehash}}/links/7)</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('md-fame-avatars', 'Markdown')">Copy</button>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <div class="code-field">
-                                    <span class="eyebrow">HTML</span>
-                                    <div class="code-block">
-                                        <pre id="html-code">&lt;a href="{{.PublicBaseURL}}/r/{{.RepoRehash}}"&gt;&lt;img src="{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer hall of fame" /&gt;&lt;/a&gt;</pre>
-                                        <button type="button" class="btn btn--sm" onclick="copySnippet('html-code', 'HTML')">Copy</button>
+                                <div>
+                                    <div class="code-field">
+                                        <span class="eyebrow">HTML</span>
+                                        <div class="code-block">
+                                            <pre id="html-fame-avatars">&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/0"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/0" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/1"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/1" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/2"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/2" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/3"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/3" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/4"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/4" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/5"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/5" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/6"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/6" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/links/7"&gt;&lt;img src="{{.PublicBaseURL}}/fame/{{.RepoRehash}}/images/7" height="90" /&gt;&lt;/a&gt;</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('html-fame-avatars', 'HTML')">Copy</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="code-field">
-                                <span class="eyebrow">Preview</span>
-                                <div class="badge-preview">
-                                    <img src="/hall-of-fame/{{.RepoRehash}}.svg" alt="Hall of fame badge preview" loading="lazy">
+                        <!-- Format 2: Full Summary Banner Card -->
+                        <div class="embed-section" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line);">
+                            <div class="embed-head">
+                                <h3 class="embed-subtitle">2. Full Summary Banner Card</h3>
+                                <span class="tag">Complete repository breakdown</span>
+                            </div>
+
+                            <div class="embed-grid">
+                                <div>
+                                    <div class="code-field">
+                                        <span class="eyebrow">Markdown</span>
+                                        <div class="code-block">
+                                            <pre id="md-code">[![Sourcerer hall of fame]({{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg)]({{.PublicBaseURL}}/r/{{.RepoRehash}})</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('md-code', 'Markdown')">Copy</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="code-field">
+                                        <span class="eyebrow">HTML</span>
+                                        <div class="code-block">
+                                            <pre id="html-code">&lt;a href="{{.PublicBaseURL}}/r/{{.RepoRehash}}"&gt;&lt;img src="{{.PublicBaseURL}}/hall-of-fame/{{.RepoRehash}}.svg" alt="Sourcerer hall of fame" /&gt;&lt;/a&gt;</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('html-code', 'HTML')">Copy</button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="badge-actions">
-                                    <a href="/hall-of-fame/{{.RepoRehash}}.svg?download=1" class="btn btn--sm" download>Download SVG</a>
-                                    <button type="button" class="btn btn--sm" onclick="copySVG('/hall-of-fame/{{.RepoRehash}}.svg')">Copy SVG</button>
+
+                                <div class="code-field">
+                                    <span class="eyebrow">Preview</span>
+                                    <div class="badge-preview">
+                                        <img src="/hall-of-fame/{{.RepoRehash}}.svg" alt="Hall of fame badge preview" loading="lazy">
+                                    </div>
+                                    <div class="badge-actions">
+                                        <a href="/hall-of-fame/{{.RepoRehash}}.svg?download=1" class="btn btn--sm" download>Download SVG</a>
+                                        <button type="button" class="btn btn--sm" onclick="copySVG('/hall-of-fame/{{.RepoRehash}}.svg')">Copy SVG</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

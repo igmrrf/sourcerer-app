@@ -34,6 +34,33 @@
                                placeholder="Search by name, language or import token — PyTorch, React, Tokio, GORM"
                                oninput="filterLibraries()" autocomplete="off">
                     </div>
+
+                    <div class="lang-pills" id="lang-pills">
+                        <button type="button" class="lang-pill is-active" data-lang="all" onclick="selectLangFilter('all')">All</button>
+                        <button type="button" class="lang-pill" data-lang="typescript" onclick="selectLangFilter('typescript')">TypeScript</button>
+                        <button type="button" class="lang-pill" data-lang="python" onclick="selectLangFilter('python')">Python</button>
+                        <button type="button" class="lang-pill" data-lang="javascript" onclick="selectLangFilter('javascript')">JavaScript</button>
+                        <button type="button" class="lang-pill" data-lang="go" onclick="selectLangFilter('go')">Go</button>
+                        <button type="button" class="lang-pill" data-lang="rust" onclick="selectLangFilter('rust')">Rust</button>
+                        <button type="button" class="lang-pill" data-lang="cpp" onclick="selectLangFilter('cpp')">C++</button>
+                        <button type="button" class="lang-pill" data-lang="zig" onclick="selectLangFilter('zig')">Zig</button>
+                        <button type="button" class="lang-pill" data-lang="solidity" onclick="selectLangFilter('solidity')">Solidity</button>
+                        <button type="button" class="lang-pill" data-lang="java" onclick="selectLangFilter('java')">Java</button>
+                        <button type="button" class="lang-pill" data-lang="csharp" onclick="selectLangFilter('csharp')">C#</button>
+                        <button type="button" class="lang-pill" data-lang="ruby" onclick="selectLangFilter('ruby')">Ruby</button>
+                        <button type="button" class="lang-pill" data-lang="php" onclick="selectLangFilter('php')">PHP</button>
+                        <button type="button" class="lang-pill" data-lang="kotlin" onclick="selectLangFilter('kotlin')">Kotlin</button>
+                        <button type="button" class="lang-pill" data-lang="swift" onclick="selectLangFilter('swift')">Swift</button>
+                        <button type="button" class="lang-pill" data-lang="scala" onclick="selectLangFilter('scala')">Scala</button>
+                        <button type="button" class="lang-pill" data-lang="perl" onclick="selectLangFilter('perl')">Perl</button>
+                        <button type="button" class="lang-pill" data-lang="dart" onclick="selectLangFilter('dart')">Dart</button>
+                        <button type="button" class="lang-pill" data-lang="elixir" onclick="selectLangFilter('elixir')">Elixir</button>
+                        <button type="button" class="lang-pill" data-lang="crystal" onclick="selectLangFilter('crystal')">Crystal</button>
+                        <button type="button" class="lang-pill" data-lang="plpgsql" onclick="selectLangFilter('plpgsql')">PL/pgSQL</button>
+                        <button type="button" class="lang-pill" data-lang="dm" onclick="selectLangFilter('dm')">DM</button>
+                        <button type="button" class="lang-pill" data-lang="devops" onclick="selectLangFilter('devops')">DevOps</button>
+                    </div>
+
                     <span class="eyebrow" id="search-status" role="status" aria-live="polite"></span>
                 </section>
 
@@ -47,7 +74,7 @@
 
                         <div class="lib-grid">
                             {{range .Items}}
-                            <a href="/libraries/{{.ID}}" class="lib-card" data-search="{{.Name}} {{.Lang}} {{.ID}} {{range .ImportTokens}}{{.}} {{end}}">
+                            <a href="/libraries/{{.ID}}" class="lib-card" data-lang="{{.Lang}}" data-search="{{.Name}} {{.Lang}} {{.ID}} {{range .ImportTokens}}{{.}} {{end}}">
                                 <div>
                                     <div class="lib-head">
                                         <span class="lib-name">{{.Name}}</span>
@@ -56,8 +83,11 @@
                                     <p class="lib-desc">{{.Description}}</p>
                                     {{if .ImportTokens}}
                                     <div class="tokens">
-                                        {{range .ImportTokens}}
+                                        {{range limitTokens .ImportTokens 25}}
                                         <span class="token">{{.}}</span>
+                                        {{end}}
+                                        {{if hasMoreTokens .ImportTokens 25}}
+                                        <span class="token token--more" title="View all {{len .ImportTokens}} function calls and ID samples in detail">+{{moreTokenCount .ImportTokens 25}} more</span>
                                         {{end}}
                                     </div>
                                     {{end}}
@@ -86,8 +116,19 @@
     </div>
 
     <script>
+        let currentLangFilter = 'all';
+
+        function selectLangFilter(lang) {
+            currentLangFilter = lang;
+            for (const pill of document.querySelectorAll('.lang-pill')) {
+                pill.classList.toggle('is-active', pill.getAttribute('data-lang') === lang);
+            }
+            filterLibraries();
+        }
+
         function filterLibraries() {
             const query = document.getElementById('lib-search').value.toLowerCase().trim();
+            const activeLang = currentLangFilter;
             const status = document.getElementById('search-status');
             let matches = 0;
 
@@ -95,7 +136,12 @@
                 let visibleInGroup = 0;
 
                 for (const card of group.querySelectorAll('.lib-card')) {
-                    const hit = !query || card.getAttribute('data-search').toLowerCase().includes(query);
+                    const cardLang = card.getAttribute('data-lang');
+                    const cardSearch = card.getAttribute('data-search').toLowerCase();
+                    const matchesQuery = !query || cardSearch.includes(query);
+                    const matchesLang = (activeLang === 'all') || (cardLang === activeLang);
+                    const hit = matchesQuery && matchesLang;
+
                     card.style.display = hit ? '' : 'none';
                     if (hit) visibleInGroup++;
                 }
@@ -104,10 +150,10 @@
                 matches += visibleInGroup;
             }
 
-            if (!query) {
+            if (!query && activeLang === 'all') {
                 status.textContent = '';
             } else if (matches === 0) {
-                status.textContent = 'No libraries match "' + query + '"';
+                status.textContent = 'No libraries match your filter';
             } else {
                 status.textContent = matches + (matches === 1 ? ' library' : ' libraries') + ' match';
             }

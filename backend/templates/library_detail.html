@@ -13,16 +13,22 @@
         <div class="shell-main">
             <header class="topbar">
                 <div class="topbar-heading">
-                    <span class="eyebrow">Library</span>
+                    <span class="eyebrow">Library &middot; {{.Library.Lang}}</span>
                     <h1>{{.Library.Name}}</h1>
                     <div class="topbar-tags">
                         <span class="tag tag--accent">{{.Library.Lang}}</span>
                         <span class="tag">{{.Library.Category}}</span>
+                        <span class="tag">{{.Library.ID}}</span>
                     </div>
                 </div>
                 <div class="topbar-tools">
                     <a href="/libraries" class="btn">All libraries</a>
                     <a href="/api/libraries/{{.Library.ID}}" class="btn">JSON</a>
+                    <button type="button" class="btn" onclick="copySVG('/libraries/{{.Library.ID}}.svg')">Copy SVG</button>
+                    <a href="/libraries/{{.Library.ID}}.svg?download=1" class="btn btn--primary" download>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>
+                        Download SVG
+                    </a>
                 </div>
             </header>
 
@@ -33,20 +39,29 @@
 
                         {{if .Library.ImportTokens}}
                         <div class="code-field" style="margin-top: 18px;">
-                            <span class="eyebrow">Imports Sourcerer looks for</span>
-                            <div class="tokens">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span class="eyebrow">Recognized imports &amp; function calls ({{len .Library.ImportTokens}} total)</span>
+                                <button type="button" class="btn btn--sm" onclick="copyAllTokens()">Copy all</button>
+                            </div>
+                            {{if gt (len .Library.ImportTokens) 10}}
+                            <div style="margin-bottom: 10px;">
+                                <input type="text" id="token-filter" class="search-input" placeholder="Filter identifiers..." oninput="filterTokens()" style="font-size: 12px; padding: 6px 12px;">
+                            </div>
+                            {{end}}
+                            <div class="tokens" id="tokens-list">
                                 {{range .Library.ImportTokens}}
-                                <span class="token">{{.}}</span>
+                                <span class="token" data-tok="{{.}}">{{.}}</span>
                                 {{end}}
                             </div>
                         </div>
                         {{end}}
                     </section>
 
+                    <!-- Top Contributors Leaderboard -->
                     <section class="panel col-12">
                         <div class="panel-head">
                             <h2 class="panel-title">Top contributors using {{.Library.Name}}</h2>
-                            <span class="eyebrow">By lines written</span>
+                            <span class="eyebrow">All time &middot; by lines written</span>
                         </div>
 
                         {{if not .Contributors}}
@@ -61,6 +76,7 @@
                                 <a href="{{$c.ProfileURL}}" class="row" title="View {{$c.Name}}'s profile">
                                     <span class="row-person">
                                         <span class="rank {{if eq $i 0}}rank--1{{else if eq $i 1}}rank--2{{else if eq $i 2}}rank--3{{end}}">{{add $i 1}}</span>
+                                        <span class="avatar {{if $c.IsSourcerer}}avatar--halo{{end}}">{{slice $c.Name 0 1}}</span>
                                         <span class="row-names">
                                             <span class="row-name">{{$c.Name}}</span>
                                             <span class="row-sub">{{$c.Email}}</span>
@@ -76,6 +92,169 @@
                         </ul>
                         {{end}}
                     </section>
+
+                    <!-- Trending Contributors (Recent) -->
+                    <section class="panel col-6">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Trending with {{.Library.Name}}</h2>
+                            <span class="eyebrow">Recent 30 days</span>
+                        </div>
+                        {{if not .TrendingContributors}}
+                        <div class="empty">
+                            <p class="empty-title">No recent commits</p>
+                        </div>
+                        {{else}}
+                        <ul class="rows">
+                            {{range .TrendingContributors}}
+                            <li>
+                                <a href="{{.ProfileURL}}" class="row" title="View {{.Name}}'s profile">
+                                    <span class="row-person">
+                                        <span class="avatar {{if .IsSourcerer}}avatar--halo{{end}}">{{slice .Name 0 1}}</span>
+                                        <span class="row-names">
+                                            <span class="row-name">{{.Name}}</span>
+                                            <span class="row-sub">{{.Email}}</span>
+                                        </span>
+                                    </span>
+                                    <span class="tag tag--del">{{.Commits}} recent</span>
+                                </a>
+                            </li>
+                            {{end}}
+                        </ul>
+                        {{end}}
+                    </section>
+
+                    <!-- New Contributors (Joined) -->
+                    <section class="panel col-6">
+                        <div class="panel-head">
+                            <h2 class="panel-title">New to {{.Library.Name}}</h2>
+                            <span class="eyebrow">First time users</span>
+                        </div>
+                        {{if not .NewContributors}}
+                        <div class="empty">
+                            <p class="empty-title">No new adopters yet</p>
+                        </div>
+                        {{else}}
+                        <ul class="rows">
+                            {{range .NewContributors}}
+                            <li>
+                                <a href="{{.ProfileURL}}" class="row" title="View {{.Name}}'s profile">
+                                    <span class="row-person">
+                                        <span class="avatar {{if .IsSourcerer}}avatar--halo{{end}}">{{slice .Name 0 1}}</span>
+                                        <span class="row-names">
+                                            <span class="row-name">{{.Name}}</span>
+                                            <span class="row-sub">{{.Email}}</span>
+                                        </span>
+                                    </span>
+                                    <span class="tag tag--add">Joined</span>
+                                </a>
+                            </li>
+                            {{end}}
+                        </ul>
+                        {{end}}
+                    </section>
+
+                    <!-- Embed Hall of Fame for Library -->
+                    <section class="panel col-12">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Embed {{.Library.Name}} Hall of Fame in your README</h2>
+                            <span class="eyebrow">Interactive contributor badges &amp; summary banner</span>
+                        </div>
+                        <p class="lede" style="margin-bottom: 16px;">
+                            Highlight your community's top and trending users. Paste this widget into your library repository's README.md.
+                        </p>
+
+                        <!-- Format 1: Contributor Avatar Badges -->
+                        <div class="embed-section">
+                            <div class="embed-head">
+                                <h3 class="embed-subtitle">1. Contributor Avatar Badges</h3>
+                                <span class="tag tag--accent">Dynamic avatars + status badges</span>
+                            </div>
+                            <div class="fame-avatars-row">
+                                <a href="/fame/lib/{{.Library.ID}}/links/0" target="_blank" title="Slot 0"><img src="/fame/lib/{{.Library.ID}}/images/0" alt="Contributor 0" height="90"></a>
+                                <a href="/fame/lib/{{.Library.ID}}/links/1" target="_blank" title="Slot 1"><img src="/fame/lib/{{.Library.ID}}/images/1" alt="Contributor 1" height="90"></a>
+                                <a href="/fame/lib/{{.Library.ID}}/links/2" target="_blank" title="Slot 2"><img src="/fame/lib/{{.Library.ID}}/images/2" alt="Contributor 2" height="90"></a>
+                                <a href="/fame/lib/{{.Library.ID}}/links/3" target="_blank" title="Slot 3"><img src="/fame/lib/{{.Library.ID}}/images/3" alt="Contributor 3" height="90"></a>
+                                <a href="/fame/lib/{{.Library.ID}}/links/4" target="_blank" title="Slot 4"><img src="/fame/lib/{{.Library.ID}}/images/4" alt="Contributor 4" height="90"></a>
+                                <a href="/fame/lib/{{.Library.ID}}/links/5" target="_blank" title="Slot 5"><img src="/fame/lib/{{.Library.ID}}/images/5" alt="Contributor 5" height="90"></a>
+                                <a href="/fame/lib/{{.Library.ID}}/links/6" target="_blank" title="Slot 6"><img src="/fame/lib/{{.Library.ID}}/images/6" alt="Contributor 6" height="90"></a>
+                                <a href="/fame/lib/{{.Library.ID}}/links/7" target="_blank" title="Legend / Spacer"><img src="/fame/lib/{{.Library.ID}}/images/7" alt="Legend" height="90"></a>
+                            </div>
+
+                            <div class="embed-grid" style="margin-top: 14px;">
+                                <div>
+                                    <div class="code-field">
+                                        <span class="eyebrow">Markdown</span>
+                                        <div class="code-block">
+                                            <pre id="md-lib-fame">[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/0)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/0)
+[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/1)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/1)
+[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/2)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/2)
+[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/3)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/3)
+[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/4)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/4)
+[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/5)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/5)
+[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/6)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/6)
+[![](https://sourcerer.io/fame/lib/{{.Library.ID}}/images/7)](https://sourcerer.io/fame/lib/{{.Library.ID}}/links/7)</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('md-lib-fame', 'Markdown')">Copy</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="code-field">
+                                        <span class="eyebrow">HTML</span>
+                                        <div class="code-block">
+                                            <pre id="html-lib-fame">&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/0"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/images/0" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/1"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/images/1" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/2"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/2" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/3"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/3" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/4"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/4" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/5"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/5" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/6"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/6" height="90" /&gt;&lt;/a&gt;
+&lt;a href="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/7"&gt;&lt;img src="{{.PublicBaseURL}}/fame/lib/{{.Library.ID}}/links/7" height="90" /&gt;&lt;/a&gt;</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('html-lib-fame', 'HTML')">Copy</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Format 2: Full Summary Banner Card -->
+                        <div class="embed-section" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line);">
+                            <div class="embed-head">
+                                <h3 class="embed-subtitle">2. Full Summary Banner Card</h3>
+                                <span class="tag">Library Hall of Fame banner</span>
+                            </div>
+
+                            <div class="embed-grid">
+                                <div>
+                                    <div class="code-field">
+                                        <span class="eyebrow">Markdown</span>
+                                        <div class="code-block">
+                                            <pre id="md-lib-card">[![{{.Library.Name}} hall of fame]({{.PublicBaseURL}}/libraries/{{.Library.ID}}.svg)]({{.PublicBaseURL}}/libraries/{{.Library.ID}})</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('md-lib-card', 'Markdown')">Copy</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="code-field">
+                                        <span class="eyebrow">HTML</span>
+                                        <div class="code-block">
+                                            <pre id="html-lib-card">&lt;a href="{{.PublicBaseURL}}/libraries/{{.Library.ID}}"&gt;&lt;img src="{{.PublicBaseURL}}/libraries/{{.Library.ID}}.svg" alt="{{.Library.Name}} hall of fame" /&gt;&lt;/a&gt;</pre>
+                                            <button type="button" class="btn btn--sm" onclick="copySnippet('html-lib-card', 'HTML')">Copy</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="code-field">
+                                    <span class="eyebrow">Preview</span>
+                                    <div class="badge-preview">
+                                        <img src="/libraries/{{.Library.ID}}.svg" alt="{{.Library.Name}} Hall of Fame banner preview" loading="lazy">
+                                    </div>
+                                    <div class="badge-actions">
+                                        <a href="/libraries/{{.Library.ID}}.svg?download=1" class="btn btn--sm" download>Download SVG</a>
+                                        <button type="button" class="btn btn--sm" onclick="copySVG('/libraries/{{.Library.ID}}.svg')">Copy SVG</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <footer class="foot">
@@ -88,5 +267,55 @@
             </main>
         </div>
     </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite">
+        <span id="toast-text">Copied</span>
+    </div>
+
+    <script>
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').textContent = message;
+            toast.classList.add('is-visible');
+            setTimeout(() => toast.classList.remove('is-visible'), 2500);
+        }
+
+        function copySVG(url) {
+            fetch(url, { credentials: 'same-origin' })
+                .then(res => res.ok ? res.text() : Promise.reject(new Error(res.status)))
+                .then(svg => navigator.clipboard.writeText(svg))
+                .then(() => showToast('SVG copied to clipboard'))
+                .catch(() => showToast('Could not copy — use Download SVG instead'));
+        }
+
+        function copySnippet(elementId, label) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(label + ' snippet copied');
+            }).catch(() => {
+                showToast('Could not copy — select the text and copy manually');
+            });
+        }
+
+        function copyAllTokens() {
+            const tokens = [];
+            for (const t of document.querySelectorAll('#tokens-list .token')) {
+                tokens.push(t.getAttribute('data-tok') || t.innerText);
+            }
+            navigator.clipboard.writeText(tokens.join('\n')).then(() => {
+                showToast('All ' + tokens.length + ' identifiers copied');
+            }).catch(() => {
+                showToast('Could not copy identifiers');
+            });
+        }
+
+        function filterTokens() {
+            const q = document.getElementById('token-filter').value.toLowerCase().trim();
+            for (const t of document.querySelectorAll('#tokens-list .token')) {
+                const tok = (t.getAttribute('data-tok') || t.innerText).toLowerCase();
+                t.style.display = (!q || tok.includes(q)) ? '' : 'none';
+            }
+        }
+    </script>
 </body>
 </html>
