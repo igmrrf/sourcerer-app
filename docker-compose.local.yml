@@ -52,7 +52,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2g
+          memory: 1g
 
   proxy:
     image: nginx:1.27-alpine
@@ -78,6 +78,10 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   dozzle:
     image: amir20/dozzle:latest
@@ -86,6 +90,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
 volumes:
   postgres_data:

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="495" height="195" viewBox="0 0 495 195" fill="none">
+<style>
+  .header { font: 700 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #f8fafc; }
+  .sub { font: 500 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #94a3b8; }
+  .stat-val { font: 700 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #f8fafc; }
+  .stat-label { font: 600 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .added { fill: #10b981; }
+  .deleted { fill: #f43f5e; }
+  .brand { font: 800 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; fill: #a78bfa; }
+</style>
+<rect width="495" height="195" rx="12" fill="#090514" stroke="#241b4a" stroke-width="1.5"/>
+
+<!-- Header -->
+<g transform="translate(25, 25)">
+  <text class="header" y="12">Igbiriki Francis</text>
+  <text class="sub" y="28">Sourcerer Engineering Profile</text>
+  <text class="brand" x="445" y="12" text-anchor="end">&#9889; SOURCERER</text>
+</g>
+
+<!-- Metrics -->
+<g transform="translate(25, 75)">
+  <!-- Commits -->
+  <text class="stat-val" x="0" y="18">678</text>
+  <text class="stat-label" x="0" y="32">Commits</text>
+  
+  <!-- Added -->
+  <text class="stat-val added" x="150" y="18">+834908</text>
+  <text class="stat-label" x="150" y="32">Lines Added</text>
+  
+  <!-- Deleted -->
+  <text class="stat-val deleted" x="300" y="18">-176433</text>
+  <text class="stat-label" x="300" y="32">Lines Deleted</text>
+</g>
+
+<!-- Language Bar Background -->
+<rect x="25" y="138" width="445" height="10" rx="5" fill="#1a1336"/>
+<!-- Language Bar Segments -->
+<rect x="25.0" y="138" width="93.5" height="10" rx="3" fill="#a78bfa" /><rect x="119.5" y="138" width="71.2" height="10" rx="3" fill="#6b8afd" /><rect x="191.7" y="138" width="71.2" height="10" rx="3" fill="#22b8cf" /><rect x="263.9" y="138" width="44.5" height="10" rx="3" fill="#34d399" /><rect x="309.4" y="138" width="31.2" height="10" rx="3" fill="#fbbf24" />
+<!-- Language Legend -->
+
+      <circle cx="25" cy="168" r="4.5" fill="#a78bfa"/>
+      <text x="37" y="172" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="500">lua <tspan fill="#64748b">21%</tspan></text>
+      <circle cx="140" cy="168" r="4.5" fill="#6b8afd"/>
+      <text x="152" y="172" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="500">typescript <tspan fill="#64748b">16%</tspan></text>
+      <circle cx="255" cy="168" r="4.5" fill="#22b8cf"/>
+      <text x="267" y="172" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="500">rust <tspan fill="#64748b">16%</tspan></text>
+      <circle cx="370" cy="168" r="4.5" fill="#34d399"/>
+      <text x="382" y="172" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="500">html <tspan fill="#64748b">10%</tspan></text>
+</svg>

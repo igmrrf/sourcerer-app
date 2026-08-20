@@ -1,5 +1,7 @@
 # Sourcerer
 
+![sample](./backend/static/sample.png)
+
 Turns your git history into an engineering profile: language breakdown, commit
 habits, recognized libraries, per-repository Hall of Fame, and embeddable SVG
 badges.
