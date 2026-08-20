@@ -29,6 +29,101 @@ const (
 // runs would clobber each other's credentials and repo list.
 var cliConfigMutex sync.Mutex
 
+type UserSyncStatus struct {
+	IsSyncing      bool   `json:"is_syncing"`
+	CurrentRepo    string `json:"current_repo,omitempty"`
+	CompletedCount int    `json:"completed_count"`
+	TotalCount     int    `json:"total_count"`
+	LastSyncedAt   int64  `json:"last_synced_at,omitempty"`
+	ErrorMessage   string `json:"error_message,omitempty"`
+}
+
+type SyncTracker struct {
+	mu     sync.RWMutex
+	status map[string]*UserSyncStatus
+}
+
+var globalSyncTracker = &SyncTracker{
+	status: make(map[string]*UserSyncStatus),
+}
+
+var (
+	inFlightMu    sync.Mutex
+	inFlightRepos = make(map[string]bool)
+)
+
+func (st *SyncTracker) StartBatch(email string, count int) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	s, ok := st.status[email]
+	if !ok || !s.IsSyncing {
+		s = &UserSyncStatus{
+			IsSyncing:      true,
+			TotalCount:     count,
+			CompletedCount: 0,
+		}
+		st.status[email] = s
+	} else {
+		s.TotalCount = count
+		if s.CompletedCount > s.TotalCount {
+			s.CompletedCount = 0
+		}
+	}
+}
+
+func (st *SyncTracker) StartJob(email, repoName string) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	s, ok := st.status[email]
+	if !ok {
+		s = &UserSyncStatus{
+			IsSyncing:  true,
+			TotalCount: 1,
+		}
+		st.status[email] = s
+	}
+	s.IsSyncing = true
+	s.CurrentRepo = repoName
+}
+
+func (st *SyncTracker) FinishJob(email string, err error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	s, ok := st.status[email]
+	if !ok {
+		return
+	}
+	s.CompletedCount++
+	s.LastSyncedAt = time.Now().Unix()
+	if err != nil {
+		s.ErrorMessage = err.Error()
+	}
+	if s.CompletedCount >= s.TotalCount {
+		s.IsSyncing = false
+		s.CurrentRepo = ""
+	}
+}
+
+func (st *SyncTracker) GetStatus(email string) UserSyncStatus {
+	st.mu.RLock()
+	defer st.mu.RUnlock()
+	if s, ok := st.status[email]; ok {
+		return *s
+	}
+	var lastSync int64
+	if db != nil && email != "" {
+		_ = db.QueryRow(`
+			SELECT COALESCE(MAX(last_synced_at), 0)
+			FROM repos r
+			JOIN commits c ON c.repo_rehash = r.rehash
+			WHERE c.author_email = $1`, email).Scan(&lastSync)
+	}
+	return UserSyncStatus{
+		IsSyncing:    false,
+		LastSyncedAt: lastSync,
+	}
+}
+
 type IngestionJob struct {
 	RepoURL        string
 	RepoName       string
@@ -36,11 +131,18 @@ type IngestionJob struct {
 	GitHubPushedAt string
 }
 
-var JobQueue = make(chan IngestionJob, 200)
+var JobQueue = make(chan IngestionJob, 500)
 
 func EnqueueJob(job IngestionJob) bool {
+	inFlightMu.Lock()
+	defer inFlightMu.Unlock()
+	if inFlightRepos[job.RepoURL] {
+		slog.Debug("Job already queued or in progress, skipping duplicate", "repo_url", job.RepoURL)
+		return false
+	}
 	select {
 	case JobQueue <- job:
+		inFlightRepos[job.RepoURL] = true
 		slog.Info("Enqueued repository ingestion job", "repo_url", job.RepoURL, "repo_name", job.RepoName, "user_email", job.UserEmail)
 		return true
 	default:
@@ -122,6 +224,14 @@ func getRemoteHeadSHA(parent context.Context, repoURL string) string {
 
 func processJob(ctx context.Context, job IngestionJob) {
 	slog.Info("Processing repository ingestion job", "repo_url", job.RepoURL, "repo_name", job.RepoName, "user_email", job.UserEmail)
+	globalSyncTracker.StartJob(job.UserEmail, job.RepoName)
+	var jobErr error
+	defer func() {
+		inFlightMu.Lock()
+		delete(inFlightRepos, job.RepoURL)
+		inFlightMu.Unlock()
+		globalSyncTracker.FinishJob(job.UserEmail, jobErr)
+	}()
 
 	// Step 1: Lightweight remote HEAD check (git ls-remote takes ~100ms and transfers a few bytes)
 	remoteHeadSHA := getRemoteHeadSHA(ctx, job.RepoURL)

@@ -1,0 +1,37 @@
+{{if .IsSyncing}}
+<div class="sync-banner is-syncing"
+     hx-get="/dashboard/sync-status"
+     hx-trigger="every 2s"
+     hx-swap="outerHTML">
+    <div class="sync-indicator">
+        <span class="spinner" aria-hidden="true"></span>
+        <div class="sync-text">
+            <span class="sync-title">Syncing repositories from GitHub</span>
+            <span class="sync-sub">
+                {{if .CurrentRepo}}
+                Analyzing <code>{{.CurrentRepo}}</code> ({{.CompletedCount}} of {{.TotalCount}} repositories)
+                {{else}}
+                Processing repository queue ({{.CompletedCount}} of {{.TotalCount}} repositories)...
+                {{end}}
+            </span>
+        </div>
+    </div>
+    <div class="sync-progress-track">
+        <div class="sync-progress-bar" style="width: {{if gt .TotalCount 0}}{{pctOf .CompletedCount (sub .TotalCount .CompletedCount)}}%{{else}}15%{{end}}"></div>
+    </div>
+</div>
+{{else}}
+<div class="sync-banner is-idle" id="sync-status-banner">
+    <div class="sync-indicator">
+        <span class="sync-dot sync-dot--done" aria-hidden="true">✓</span>
+        <div class="sync-text">
+            <span class="sync-title">Repositories up to date</span>
+            {{if .TimeAgo}}<span class="sync-sub">Last synced {{.TimeAgo}}</span>{{else}}<span class="sync-sub">Ready to sync</span>{{end}}
+        </div>
+    </div>
+    <a href="/auth/github/login" class="btn btn--sm btn--ghost" title="Refresh repositories from GitHub">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5A8 8 0 0 0 6.3 6.3L4 8.5"/><path d="M4 4.5v4h4"/><path d="M4 12.5a8 8 0 0 0 13.7 5.2L20 15.5"/><path d="M20 19.5v-4h-4"/></svg>
+        Sync now
+    </a>
+</div>
+{{end}}
