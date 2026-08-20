@@ -1910,6 +1910,39 @@ textarea {
     color: var(--accent);
 }
 
+/* -------------------------------------------------- system health badge --- */
+.health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    cursor: default;
+    user-select: none;
+}
+
+.foot-links .health-badge {
+    font-size: 0.8125rem;
+}
+
+.health-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    flex-shrink: 0;
+}
+
+.health-icon svg {
+    width: 8.5px;
+    height: 8.5px;
+    stroke-width: 2.4;
+}
+
 /* ---------------------------------------------------- sync status banner --- */
 .sync-banner {
     display: flex;

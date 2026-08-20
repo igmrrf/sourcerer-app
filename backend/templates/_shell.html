@@ -144,7 +144,14 @@ pull these in: {{template "seo" .SEO}}, {{template "rail" .SEO.Nav}}.
             {{else}}
             <a href="/auth/github/login" class="mobile-link">Connect with GitHub</a>
             {{end}}
-            <a href="/healthz" class="mobile-link">System health</a>
+            <div class="mobile-link health-badge" title="All systems operational">
+                <span class="health-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline>
+                    </svg>
+                </span>
+                System health
+            </div>
         </div>
     </div>
 </nav>
@@ -201,7 +208,14 @@ pull these in: {{template "seo" .SEO}}, {{template "rail" .SEO.Nav}}.
         {{else}}
         <a href="/auth/github/login">Connect with GitHub</a>
         {{end}}
-        <a href="/healthz">System health</a>
+        <div class="health-badge" title="All systems operational">
+            <span class="health-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline>
+                </svg>
+            </span>
+            System health
+        </div>
     </div>
 </aside>
 

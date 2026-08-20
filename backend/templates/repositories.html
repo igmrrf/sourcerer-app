@@ -46,7 +46,14 @@
                         <a href="/badge/{{.SEO.Nav.ProfileID}}.svg?download=1" download>Download SVG badge</a>
                         {{end}}
                         <a href="/libraries">Libraries</a>
-                        <a href="/healthz">System health</a>
+                        <span class="health-badge" title="All systems operational">
+                            <span class="health-icon" aria-hidden="true">
+                                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline>
+                                </svg>
+                            </span>
+                            System health
+                        </span>
                     </div>
                 </footer>
             </main>
