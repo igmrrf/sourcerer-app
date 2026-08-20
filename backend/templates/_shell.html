@@ -54,8 +54,102 @@ pull these in: {{template "seo" .SEO}}, {{template "rail" .SEO.Nav}}.
 </span>
 {{end}}
 
-{{/* rail takes a NavMeta: the same sidebar on every page. */}}
+{{/* rail takes a NavMeta: desktop sidebar plus sleek modern mobile menu bar and drawer. */}}
 {{define "rail"}}
+<!-- Mobile Navigation Bar (visible on mobile / tablet <= 980px) -->
+<header class="mobile-bar">
+    <a href="/" class="mobile-brand">
+        {{template "logomark"}}
+        <span class="wordmark">Sourcerer</span>
+    </a>
+
+    <div class="mobile-bar-actions">
+        <button type="button" class="mobile-menu-toggle" id="mobile-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" onclick="toggleMobileMenu()">
+            <svg class="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            <svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+    </div>
+</header>
+
+<!-- Mobile Drawer Backdrop & Menu -->
+<div class="mobile-drawer-backdrop" id="mobile-drawer-backdrop" onclick="toggleMobileMenu(false)"></div>
+<nav class="mobile-drawer" id="mobile-drawer" aria-label="Mobile Navigation">
+    <div class="mobile-drawer-head">
+        {{if .SignedIn}}
+        <div class="mobile-user-profile">
+            <span class="avatar avatar--sm">{{if .UserName}}{{slice .UserName 0 1}}{{else}}U{{end}}</span>
+            <div class="mobile-user-info">
+                <span class="mobile-user-name">{{.UserName}}</span>
+                <span class="mobile-user-email">{{.UserEmail}}</span>
+            </div>
+        </div>
+        {{else}}
+        <span class="eyebrow">Menu</span>
+        {{end}}
+        <button type="button" class="btn-close" aria-label="Close menu" onclick="toggleMobileMenu(false)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+    </div>
+
+    <div class="mobile-drawer-content">
+        <div class="mobile-drawer-group">
+            <span class="mobile-drawer-label">Sourcerer</span>
+            <a href="/" class="mobile-link{{if eq .Active "overview"}} is-active{{end}}" onclick="toggleMobileMenu(false)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                Overview
+            </a>
+            {{if .SignedIn}}
+            <a href="/repositories" class="mobile-link{{if eq .Active "repositories"}} is-active{{end}}" onclick="toggleMobileMenu(false)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v14H6.5A2.5 2.5 0 0 0 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H19v4H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M9 7h6"/></svg>
+                Repositories
+            </a>
+            {{end}}
+            <a href="/libraries" class="mobile-link{{if eq .Active "libraries"}} is-active{{end}}" onclick="toggleMobileMenu(false)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 5-9-5v-7l9-5z"/><path d="M3.3 7.8 12 12.6l8.7-4.8"/><path d="M12 12.6V20"/></svg>
+                Libraries
+            </a>
+        </div>
+
+        {{if .ProfileID}}
+        <div class="mobile-drawer-group">
+            <span class="mobile-drawer-label">Yours</span>
+            <a href="/p/{{.ProfileID}}" class="mobile-link{{if eq .Active "profile"}} is-active{{end}}" onclick="toggleMobileMenu(false)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+                Public profile
+            </a>
+            <a href="/badge/{{.ProfileID}}.svg?download=1" class="mobile-link" download>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>
+                README badge
+            </a>
+        </div>
+        {{end}}
+
+        <div class="mobile-drawer-foot">
+            {{if .SignedIn}}
+            <a href="/auth/github/login" class="btn btn--sm" style="width: 100%; justify-content: center; margin-bottom: 8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5A8 8 0 0 0 6.3 6.3L4 8.5"/><path d="M4 4.5v4h4"/><path d="M4 12.5a8 8 0 0 0 13.7 5.2L20 15.5"/><path d="M20 19.5v-4h-4"/></svg>
+                Sync repositories
+            </a>
+            <a href="/auth/logout" class="mobile-link">Log out</a>
+            {{else}}
+            <a href="/auth/github/login" class="mobile-link">Connect with GitHub</a>
+            {{end}}
+            <a href="/healthz" class="mobile-link">System health</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Desktop Sidebar -->
 <aside class="rail">
     <a href="/" class="rail-brand">
         {{template "logomark"}}
@@ -110,4 +204,31 @@ pull these in: {{template "seo" .SEO}}, {{template "rail" .SEO.Nav}}.
         <a href="/healthz">System health</a>
     </div>
 </aside>
+
+<script>
+function toggleMobileMenu(force) {
+    const drawer = document.getElementById('mobile-drawer');
+    const backdrop = document.getElementById('mobile-drawer-backdrop');
+    const btn = document.getElementById('mobile-menu-btn');
+    if (!drawer || !backdrop || !btn) return;
+
+    const isOpen = typeof force === 'boolean' ? force : !drawer.classList.contains('is-open');
+    if (isOpen) {
+        drawer.classList.add('is-open');
+        backdrop.classList.add('is-open');
+        btn.setAttribute('aria-expanded', 'true');
+        btn.classList.add('is-active');
+        document.body.classList.add('menu-open');
+    } else {
+        drawer.classList.remove('is-open');
+        backdrop.classList.remove('is-open');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.classList.remove('is-active');
+        document.body.classList.remove('menu-open');
+    }
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') toggleMobileMenu(false);
+});
+</script>
 {{end}}
